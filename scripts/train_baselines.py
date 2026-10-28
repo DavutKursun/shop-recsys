@@ -14,6 +14,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+# sets OMP_NUM_THREADS and checks the macOS OpenMP fix before torch / faiss / lightgbm load
+import recsys  # noqa: E402,F401
 from recsys.baselines import BASELINES, ItemKNN
 from recsys.config import MODELS, RESULTS, SPLITS
 from recsys.data import Dataset

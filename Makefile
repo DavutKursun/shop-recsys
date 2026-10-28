@@ -1,11 +1,13 @@
-.PHONY: setup setup-dev test dataset baselines sasrec two-tower index reranker eval-dev synth smoke app
+.PHONY: setup setup-dev openmp-fix test dataset baselines sasrec two-tower index reranker eval-dev synth smoke app
 
 PY ?= python
 
 setup:
-	$(PY) -m pip install -r requirements.txt
+	$(PY) -m pip install -r requirements.txt && $(PY) scripts/fix_openmp_macos.py
 setup-dev:
-	$(PY) -m pip install -r requirements-dev.txt
+	$(PY) -m pip install -r requirements-dev.txt && $(PY) scripts/fix_openmp_macos.py
+openmp-fix:       ## macOS: one OpenMP runtime for torch, faiss-cpu and lightgbm (no-op elsewhere; rerun after upgrading them)
+	$(PY) scripts/fix_openmp_macos.py
 test:
 	$(PY) -m pytest -q
 dataset:          ## raw files → parquet cache → vocabulary, windows, sessions → data/splits/

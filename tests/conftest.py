@@ -10,6 +10,12 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+if sys.platform == "darwin":  # two OpenMP runtimes (torch / faiss-cpu / lightgbm) in one process segfault the whole run
+    from recsys._openmp_macos import FIX_COMMAND, status
+
+    if status()["needs_fix"]:
+        pytest.exit(f"macOS: more than one OpenMP runtime would load into pytest; run `{FIX_COMMAND}` first", returncode=2)
+
 from recsys.baselines import ItemKNN, Markov, Popularity, Repeat
 from recsys.config import SASREC, TWO_TOWER, WindowRules
 from recsys.data import Dataset, cache_raw

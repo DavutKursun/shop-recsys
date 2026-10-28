@@ -33,10 +33,14 @@ item categories from the property files). Global time split: train → 14-day re
 
 ## Run it yourself
 ```bash
-pip install -r requirements-dev.txt && pytest -q      # no data needed
+pip install -r requirements-dev.txt
+python scripts/fix_openmp_macos.py                    # macOS only, once per venv (see below)
+pytest -q                                             # no data needed
 python scripts/download.py                            # where to put the raw files
 make dataset baselines sasrec two-tower index reranker eval-dev
 ```
+On macOS, torch, faiss-cpu and lightgbm each ship their own OpenMP runtime, and two of them in one process abort or hang
+Python at the first parallel region; the script points all three at torch's copy (rerun it after upgrading any of them).
 
 ## Stack
 Python · PyTorch · FAISS · LightGBM · pandas/pyarrow · FastAPI · Gradio

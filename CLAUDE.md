@@ -51,7 +51,9 @@ model must beat popularity by a wide margin. Then ask Davut to download the Reta
 
 macOS notes: Python 3.11 venv; 8 GB RAM — never load the property files whole (the loader streams them);
 `pip install torch` picks the right wheel; use `--device mps` on Apple Silicon if it is faster than cpu (try both on
-one epoch); `brew install libomp` if LightGBM complains.
+one epoch); `brew install libomp` if LightGBM complains. After every `pip install`, run `python scripts/fix_openmp_macos.py` once: torch, faiss-cpu and
+lightgbm each bundle a libomp, and two in one process abort, hang or segfault Python (`KMP_DUPLICATE_LIB_OK` does not help);
+the script makes all three load torch's copy.
 
 ## 1. Goal
 
