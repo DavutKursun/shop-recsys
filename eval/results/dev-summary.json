@@ -1,0 +1,326 @@
+{
+  "n_cases": 93937,
+  "n_users": 38012,
+  "share_target_reachable": 0.7919,
+  "share_repeat": 0.2547,
+  "share_warm": 0.3911,
+  "models": {
+    "popularity": {
+      "recall@10": {
+        "point": 0.0030233028519113876,
+        "ci_low": 0.0024418221262702544,
+        "ci_high": 0.00362451654823101,
+        "n_cases": 93937,
+        "n_users": 38012
+      },
+      "ndcg@10": {
+        "point": 0.0013851015673774774,
+        "ci_low": 0.0011197627436373993,
+        "ci_high": 0.0016617403438535627,
+        "n_cases": 93937,
+        "n_users": 38012
+      },
+      "mrr@10": {
+        "point": 0.0008800688945360375,
+        "ci_low": 0.0007065146772064386,
+        "ci_high": 0.0010555620336136595,
+        "n_cases": 93937,
+        "n_users": 38012
+      },
+      "recall@20": {
+        "point": 0.007153730691846663,
+        "ci_low": 0.006275488190712692,
+        "ci_high": 0.008166351794822517,
+        "n_cases": 93937,
+        "n_users": 38012
+      },
+      "ndcg@20": {
+        "point": 0.002425883671373813,
+        "ci_low": 0.0021072143438630904,
+        "ci_high": 0.0027534429615513577,
+        "n_cases": 93937,
+        "n_users": 38012
+      },
+      "mrr@20": {
+        "point": 0.0011627695461709634,
+        "ci_low": 0.000983693572331229,
+        "ci_high": 0.0013355624334397687,
+        "n_cases": 93937,
+        "n_users": 38012
+      },
+      "coverage@10": 0.00014329932362719248,
+      "popularity_quantile@10": 6.448561970680538e-05
+    },
+    "repeat": {
+      "recall@10": {
+        "point": 0.24159809233848217,
+        "ci_low": 0.23356218403448192,
+        "ci_high": 0.24930780906363081,
+        "n_cases": 93937,
+        "n_users": 38012
+      },
+      "ndcg@10": {
+        "point": 0.1906490947379244,
+        "ci_low": 0.18352087116202317,
+        "ci_high": 0.19761617661973238,
+        "n_cases": 93937,
+        "n_users": 38012
+      },
+      "mrr@10": {
+        "point": 0.17362522687022083,
+        "ci_low": 0.16663918455903168,
+        "ci_high": 0.18020952843059107,
+        "n_cases": 93937,
+        "n_users": 38012
+      },
+      "recall@20": {
+        "point": 0.2480598699128139,
+        "ci_low": 0.240449199541256,
+        "ci_high": 0.25560455467438414,
+        "n_cases": 93937,
+        "n_users": 38012
+      },
+      "ndcg@20": {
+        "point": 0.1922889715784845,
+        "ci_low": 0.18533076294179052,
+        "ci_high": 0.19921275921326376,
+        "n_cases": 93937,
+        "n_users": 38012
+      },
+      "mrr@20": {
+        "point": 0.17407798871554667,
+        "ci_low": 0.16710598666539989,
+        "ci_high": 0.18062598178561112,
+        "n_cases": 93937,
+        "n_users": 38012
+      },
+      "coverage@10": 0.43363808322824715,
+      "popularity_quantile@10": 0.08273545955992324
+    },
+    "markov": {
+      "recall@10": {
+        "point": 0.1396148482493586,
+        "ci_low": 0.1354721028749297,
+        "ci_high": 0.14351466464283763,
+        "n_cases": 93937,
+        "n_users": 38012
+      },
+      "ndcg@10": {
+        "point": 0.08593894502604443,
+        "ci_low": 0.08330308996005753,
+        "ci_high": 0.08854090976516547,
+        "n_cases": 93937,
+        "n_users": 38012
+      },
+      "mrr@10": {
+        "point": 0.06928314924338855,
+        "ci_low": 0.06688772151279569,
+        "ci_high": 0.07143206802769177,
+        "n_cases": 93937,
+        "n_users": 38012
+      },
+      "recall@20": {
+        "point": 0.16530227705802825,
+        "ci_low": 0.16068091112423263,
+        "ci_high": 0.16984023559172878,
+        "n_cases": 93937,
+        "n_users": 38012
+      },
+      "ndcg@20": {
+        "point": 0.09247180392026307,
+        "ci_low": 0.08970665458978773,
+        "ci_high": 0.09514911440659236,
+        "n_cases": 93937,
+        "n_users": 38012
+      },
+      "mrr@20": {
+        "point": 0.0710961213376577,
+        "ci_low": 0.06873181230900603,
+        "ci_high": 0.07328271837359143,
+        "n_cases": 93937,
+        "n_users": 38012
+      },
+      "coverage@10": 0.48781955749168865,
+      "popularity_quantile@10": 0.09687151826666156
+    },
+    "item_knn": {
+      "recall@10": {
+        "point": 0.1364425093413671,
+        "ci_low": 0.1319681953413788,
+        "ci_high": 0.14082268453931399,
+        "n_cases": 93937,
+        "n_users": 38012
+      },
+      "ndcg@10": {
+        "point": 0.07816706128543735,
+        "ci_low": 0.07577975298738458,
+        "ci_high": 0.08065969197469447,
+        "n_cases": 93937,
+        "n_users": 38012
+      },
+      "mrr@10": {
+        "point": 0.06028366529340586,
+        "ci_low": 0.058287274052551116,
+        "ci_high": 0.062226777259118585,
+        "n_cases": 93937,
+        "n_users": 38012
+      },
+      "recall@20": {
+        "point": 0.17900294878482387,
+        "ci_low": 0.17325483882879544,
+        "ci_high": 0.18456614869407034,
+        "n_cases": 93937,
+        "n_users": 38012
+      },
+      "ndcg@20": {
+        "point": 0.08891240154203603,
+        "ci_low": 0.08617173620825787,
+        "ci_high": 0.09173063746034872,
+        "n_cases": 93937,
+        "n_users": 38012
+      },
+      "mrr@20": {
+        "point": 0.06322512219921238,
+        "ci_low": 0.061178821315077826,
+        "ci_high": 0.0652540010681093,
+        "n_cases": 93937,
+        "n_users": 38012
+      },
+      "coverage@10": 0.6088644961595782,
+      "popularity_quantile@10": 0.31496278669545347
+    }
+  },
+  "breakdowns": {
+    "warm": {
+      "n_cases": 36736,
+      "popularity": 0.0033,
+      "repeat": 0.23,
+      "markov": 0.0817,
+      "item_knn": 0.0791
+    },
+    "cold": {
+      "n_cases": 57201,
+      "popularity": 0.0028,
+      "repeat": 0.249,
+      "markov": 0.1768,
+      "item_knn": 0.1733
+    },
+    "repeat": {
+      "n_cases": 23929,
+      "popularity": 0.0076,
+      "repeat": 0.9448,
+      "markov": 0.1563,
+      "item_knn": 0.1423
+    },
+    "new": {
+      "n_cases": 70008,
+      "popularity": 0.0015,
+      "repeat": 0.0012,
+      "markov": 0.1339,
+      "item_knn": 0.1345
+    },
+    "hist_1-1": {
+      "n_cases": 30878,
+      "popularity": 0.0028,
+      "repeat": 0.1436,
+      "markov": 0.1411,
+      "item_knn": 0.1383
+    },
+    "hist_2-4": {
+      "n_cases": 28114,
+      "popularity": 0.0038,
+      "repeat": 0.282,
+      "markov": 0.1669,
+      "item_knn": 0.1587
+    },
+    "hist_5-19": {
+      "n_cases": 19158,
+      "popularity": 0.0028,
+      "repeat": 0.3508,
+      "markov": 0.1397,
+      "item_knn": 0.1412
+    },
+    "hist_20-plus": {
+      "n_cases": 15787,
+      "popularity": 0.0024,
+      "repeat": 0.2289,
+      "markov": 0.088,
+      "item_knn": 0.0875
+    },
+    "target_view": {
+      "n_cases": 91480,
+      "popularity": 0.003,
+      "repeat": 0.238,
+      "markov": 0.1398,
+      "item_knn": 0.1366
+    },
+    "target_addtocart": {
+      "n_cases": 1715,
+      "popularity": 0.0035,
+      "repeat": 0.2315,
+      "markov": 0.1539,
+      "item_knn": 0.1574
+    },
+    "target_transaction": {
+      "n_cases": 742,
+      "popularity": 0.0054,
+      "repeat": 0.7089,
+      "markov": 0.0863,
+      "item_knn": 0.0741
+    }
+  },
+  "paired": {
+    "popularity_minus_repeat": {
+      "point": -0.2385747894865708,
+      "ci_low": -0.24635754251926367,
+      "ci_high": -0.23064649470418405,
+      "n_resamples": 500,
+      "significant": true
+    },
+    "markov_minus_repeat": {
+      "point": -0.10198324408912357,
+      "ci_low": -0.10898632564630953,
+      "ci_high": -0.09454197753578573,
+      "n_resamples": 500,
+      "significant": true
+    },
+    "item_knn_minus_repeat": {
+      "point": -0.10515558299711508,
+      "ci_low": -0.11235940824060303,
+      "ci_high": -0.09765970865396245,
+      "n_resamples": 500,
+      "significant": true
+    }
+  },
+  "best_baseline": "repeat",
+  "split": "dev",
+  "run_date": "2026-10-28",
+  "models_evaluated": [
+    "popularity",
+    "repeat",
+    "markov",
+    "item_knn"
+  ],
+  "sampled_negatives_demo": {
+    "n_cases": 5000,
+    "n_negatives": 100,
+    "models": {
+      "popularity": {
+        "full_hr@10": 0.0012,
+        "sampled_hr@10": 0.335
+      },
+      "repeat": {
+        "full_hr@10": 0.2486,
+        "sampled_hr@10": 0.4738
+      },
+      "markov": {
+        "full_hr@10": 0.132,
+        "sampled_hr@10": 0.4056
+      },
+      "item_knn": {
+        "full_hr@10": 0.1318,
+        "sampled_hr@10": 0.4892
+      }
+    }
+  }
+}

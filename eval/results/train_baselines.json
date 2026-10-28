@@ -1,0 +1,14 @@
+{
+  "popularity": {
+    "seconds": 0.0
+  },
+  "repeat": {
+    "seconds": 0.0
+  },
+  "markov": {
+    "seconds": 5.1
+  },
+  "item_knn": {
+    "seconds": 8.9
+  }
+}

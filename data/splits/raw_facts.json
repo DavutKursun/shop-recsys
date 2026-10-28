@@ -1,0 +1,14 @@
+{
+  "events": 2756101,
+  "users": 1407580,
+  "items": 235061,
+  "items_with_category": 417053,
+  "categories": 1180,
+  "ts_min": 1430622004384,
+  "ts_max": 1442545187788,
+  "by_type": {
+    "view": 2664312,
+    "addtocart": 69332,
+    "transaction": 22457
+  }
+}

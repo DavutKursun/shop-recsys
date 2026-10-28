@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import sys
 from pathlib import Path
 
@@ -44,6 +45,8 @@ def main(argv=None) -> int:
     rules = WindowRules(days=a.days, min_item_events=a.min_item_events, max_len=a.max_len)
     ds = Dataset.build(events, categories, rules)
     ds.save(a.out)
+    if (a.cache / "raw_facts.json").exists():
+        shutil.copy(a.cache / "raw_facts.json", a.out / "raw_facts.json")  # data/cache is gitignored, data/splits/*.json is committed
     summary = ds.summary()
     (a.out / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     print(json.dumps(summary, indent=2))

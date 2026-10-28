@@ -18,7 +18,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from .config import CACHE, EVENT_TYPES, FIRST_ITEM, PAD, RAW, RAW_FILES, SPLITS, UNK, WINDOWS, WindowRules
+from .config import CACHE, EVENT_TYPES, FIRST_ITEM, HISTORY_BUCKETS, PAD, RAW, RAW_FILES, SPLITS, UNK, WINDOWS, WindowRules
 
 EVENT_COLUMNS = ["ts", "user", "item", "etype"]
 WINDOW_NAMES = ("train", "rerank", "dev", "test")
@@ -279,7 +279,8 @@ class Dataset:
         m = pd.Series(self.items["iidx"].to_numpy(), index=self.items["item"].to_numpy())
         return m.reindex(np.asarray(raw_items, dtype=np.int64)).fillna(UNK).to_numpy(dtype=np.int64)
 
-    def summary(self) -> dict:
+    def summary(self, case_windows: tuple[str, ...] = ("rerank", "dev")) -> dict:
+        """Dataset facts for DESIGN.md. `case_windows` never includes "test" before M4 (CLAUDE.md §2)."""
         ev = self.events
         out = {"windows": self.windows.as_dict(), "vocab_items": int(self.n_items - FIRST_ITEM), "events_after_dedup": len(ev), "users": int(ev["uidx"].max()) + 1,
                "sessions": int(ev["session"].max()) + 1, "categories": self.n_categories - 1, "by_window": {}}
@@ -292,4 +293,19 @@ class Dataset:
         lens = np.array([len(s) for s in seqs]) if seqs else np.array([0])
         out["train_sequences"] = {"users": len(seqs), "events": int(lens.sum()), "median_len": float(np.median(lens)), "p95_len": float(np.percentile(lens, 95)),
                                   "share_longer_than_max_len": round(float((lens > self.rules.max_len).mean()), 4)}
+        out["cases"] = {w: self._cases_summary(w) for w in case_windows}
         return out
+
+    def _cases_summary(self, window: str) -> dict:
+        """What the evaluation cases of one window look like: history length, warm / repeat / reachable shares."""
+        c = self.cases(window)
+        n = max(len(c), 1)
+        pct = (25, 50, 75, 90, 95, 99)
+        q = np.percentile(c.hist_len, pct) if len(c) else np.zeros(len(pct))
+        buckets = {f"hist_{lo}-{hi if hi < 10_000 else 'plus'}": int(((c.hist_len >= lo) & (c.hist_len <= hi)).sum()) for lo, hi in HISTORY_BUCKETS}
+        return {"cases": len(c), "users": int(len(np.unique(c.user))), "events_in_window": int((self.events["window"] == WINDOW_CODE[window]).sum()),
+                "hist_len_quantiles": {f"p{p}": float(v) for p, v in zip(pct, q)}, "hist_len_buckets": buckets,
+                "share_warm": round(float(c.warm.sum() / n), 4), "share_repeat": round(float(c.repeat.sum() / n), 4),
+                "share_target_reachable": round(float(c.reachable.sum() / n), 4),
+                "share_repeat_among_reachable": round(float(c.repeat[c.reachable].mean()), 4) if c.reachable.any() else None,
+                "by_target_type": {name: int((c.etype == code).sum()) for name, code in EVENT_TYPES.items()}}

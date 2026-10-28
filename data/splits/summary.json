@@ -1,0 +1,128 @@
+{
+  "windows": {
+    "t0": 1438916381779,
+    "t1": 1440125981779,
+    "t2": 1441335581779,
+    "end": 1442545181779,
+    "t0_iso": "2015-08-07 02:59",
+    "t1_iso": "2015-08-21 02:59",
+    "t2_iso": "2015-09-04 02:59",
+    "end_iso": "2015-09-18 02:59"
+  },
+  "vocab_items": 69784,
+  "events_after_dedup": 2475306,
+  "users": 1407580,
+  "sessions": 1763140,
+  "categories": 940,
+  "by_window": {
+    "train": {
+      "events": 1809085,
+      "users": 1023737,
+      "items": 204788,
+      "share_events_in_vocab": 0.8666,
+      "by_type": {
+        "view": 1787922,
+        "addtocart": 15404,
+        "transaction": 5759
+      }
+    },
+    "rerank": {
+      "events": 221590,
+      "users": 142514,
+      "items": 73312,
+      "share_events_in_vocab": 0.7967,
+      "by_type": {
+        "view": 218468,
+        "addtocart": 2385,
+        "transaction": 737
+      }
+    },
+    "dev": {
+      "events": 221473,
+      "users": 141764,
+      "items": 72827,
+      "share_events_in_vocab": 0.776,
+      "by_type": {
+        "view": 218352,
+        "addtocart": 2367,
+        "transaction": 754
+      }
+    },
+    "test": {
+      "events": 223158,
+      "users": 142024,
+      "items": 72440,
+      "share_events_in_vocab": 0.7401,
+      "by_type": {
+        "view": 220167,
+        "addtocart": 2348,
+        "transaction": 643
+      }
+    }
+  },
+  "train_sequences": {
+    "users": 240351,
+    "events": 1025699,
+    "median_len": 2.0,
+    "p95_len": 10.0,
+    "share_longer_than_max_len": 0.003
+  },
+  "cases": {
+    "rerank": {
+      "cases": 92536,
+      "users": 36527,
+      "events_in_window": 221590,
+      "hist_len_quantiles": {
+        "p25": 1.0,
+        "p50": 3.0,
+        "p75": 9.0,
+        "p90": 62.0,
+        "p95": 399.0,
+        "p99": 2752.649999999994
+      },
+      "hist_len_buckets": {
+        "hist_1-1": 29664,
+        "hist_2-4": 27402,
+        "hist_5-19": 19950,
+        "hist_20-plus": 15520
+      },
+      "share_warm": 0.3826,
+      "share_repeat": 0.26,
+      "share_target_reachable": 0.8185,
+      "share_repeat_among_reachable": 0.3177,
+      "by_target_type": {
+        "view": 90032,
+        "addtocart": 1778,
+        "transaction": 726
+      }
+    },
+    "dev": {
+      "cases": 93937,
+      "users": 38012,
+      "events_in_window": 221473,
+      "hist_len_quantiles": {
+        "p25": 1.0,
+        "p50": 3.0,
+        "p75": 9.0,
+        "p90": 78.0,
+        "p95": 520.0,
+        "p99": 1807.6399999999994
+      },
+      "hist_len_buckets": {
+        "hist_1-1": 30878,
+        "hist_2-4": 28114,
+        "hist_5-19": 19158,
+        "hist_20-plus": 15787
+      },
+      "share_warm": 0.3911,
+      "share_repeat": 0.2547,
+      "share_target_reachable": 0.7919,
+      "share_repeat_among_reachable": 0.3217,
+      "by_target_type": {
+        "view": 91480,
+        "addtocart": 1715,
+        "transaction": 742
+      }
+    }
+  }
+}

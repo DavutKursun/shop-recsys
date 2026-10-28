@@ -1,0 +1,23 @@
+{
+  "windows": {
+    "t0": 1438916381779,
+    "t1": 1440125981779,
+    "t2": 1441335581779,
+    "end": 1442545181779,
+    "t0_iso": "2015-08-07 02:59",
+    "t1_iso": "2015-08-21 02:59",
+    "t2_iso": "2015-09-04 02:59",
+    "end_iso": "2015-09-18 02:59"
+  },
+  "rules": {
+    "days": 14,
+    "session_gap_minutes": 30,
+    "min_item_events": 5,
+    "min_train_events": 2,
+    "max_len": 50,
+    "recent_days": 7
+  },
+  "n_items": 69786,
+  "n_categories": 941,
+  "n_parents": 254
+}

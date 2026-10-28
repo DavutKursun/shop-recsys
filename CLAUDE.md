@@ -7,7 +7,9 @@ report directly. Never print any token or environment variable value. Section 0 
 
 ## 0. Status (updated 2026-10-28)
 
-**Starter is implemented and tested (22 tests, no network, no raw data needed). Start at Milestone 1, step 0.**
+**Milestone 1 is done (2026-10-28): dataset built, four baselines evaluated on dev (`eval/results/dev-summary.md`,
+DESIGN.md §1–2). Repeat is the baseline to beat: dev recall@10 0.242 [0.234, 0.249]; Markov 0.140, item-kNN 0.136,
+popularity 0.003. Start at Milestone 2.**
 
 Implemented in the starter (`recsys/`):
 - `config.py` (paths, window rules, model configs, seeds), `schema.py` (RecommendRequest / RecommendResponse, Pydantic)
@@ -43,7 +45,8 @@ Implemented in the starter (`recsys/`):
 
 No LLM anywhere; no API key; CPU (or Apple MPS) is enough. Raw files (≈ 1 GB) and parquet are gitignored.
 
-**Milestone 1, step 0 (do first):** create the venv, `pip install torch` (on macOS this is the CPU/MPS build),
+**Milestone 1, step 0 — done (venv, 22 tests, synthetic check: reranked beats every single model, learned models ≥ 9×
+popularity; data fetched with the Kaggle CLI). For the record:** create the venv, `pip install torch` (on macOS this is the CPU/MPS build),
 `pip install -r requirements-dev.txt`, `pytest -q` (expect 22 passed, ~1 min). Then `python scripts/synthetic_check.py`
 and report its table: on the synthetic shop the reranked pipeline must beat every single model and every learned
 model must beat popularity by a wide margin. Then ask Davut to download the RetailRocket files into `data/raw/`
