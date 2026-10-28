@@ -40,6 +40,28 @@ def source_topk(models: dict[str, Recommender], history: np.ndarray, k: int) -> 
     return {name: m.topk(history, k) for name, m in models.items()}
 
 
+def recommend(models: dict[str, Recommender], reranker: Reranker | None, history: np.ndarray, k: int,
+              names: tuple[str, ...] = ("reranked",)) -> dict[str, tuple[np.ndarray, np.ndarray, list]]:
+    """The serving path shared by the API, the demo UI and the latency bench, built from the calls `evaluate_models`
+    makes: `source_topk` over every source and `Reranker.rerank(..., models=models)` for the reranked list (each source's
+    top-K, K = the reranker's candidate budget), `Recommender.topk` for a single model. Returns, per name, the (n, k) item
+    indices, their scores and, per row, the sources behind each item (a single model is its own source). The reranked
+    list can hold fewer than k real items when the candidate union is smaller; those slots carry PAD."""
+    out: dict[str, tuple[np.ndarray, np.ndarray, list]] = {}
+    singles = [n for n in names if n != "reranked"]
+    if "reranked" in names:
+        if reranker is None:
+            raise ValueError("the reranked list needs a reranker")
+        tk = source_topk(models, history, max(k, reranker.rules.candidates_per_source))
+        out["reranked"] = reranker.rerank(history, tk, k, models=models, with_sources=True)
+    else:
+        tk = {n: models[n].topk(history, k) for n in singles}
+    for n in singles:
+        idx, sc = tk[n][0][:, :k], tk[n][1][:, :k]
+        out[n] = (idx, sc, [[[n]] * idx.shape[1] for _ in range(len(idx))])
+    return out
+
+
 def evaluate_models(cases: Cases, models: dict[str, Recommender], reranker: Reranker | None = None, n_items: int = 0, ks=TOP_K,
                     per_source: int = RERANK.candidates_per_source, chunk: int = 20_000, resamples: int = BOOTSTRAP_RESAMPLES,
                     baseline_names=("popularity", "repeat", "hybrid", "markov", "item_knn"), log_fn=print) -> dict:

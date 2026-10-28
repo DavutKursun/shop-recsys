@@ -1,4 +1,4 @@
-.PHONY: setup setup-dev openmp-fix test dataset baselines sasrec two-tower index reranker eval-dev synth smoke app
+.PHONY: setup setup-dev openmp-fix test dataset baselines sasrec two-tower index reranker eval-dev synth smoke serving bench app deploy
 
 PY ?= python
 
@@ -28,5 +28,11 @@ synth:            ## the whole pipeline on the synthetic shop (no real data)
 	$(PY) scripts/synthetic_check.py
 smoke:            ## the script chain on a synthetic export
 	$(PY) -m pytest -q tests/test_scripts.py
-app:
-	$(PY) -m uvicorn app:app --port 7860
+serving:          ## the served bundle → serving/ (eight models, items, 2,000 dev shoppers, checks against the evaluation path)
+	$(PY) scripts/export_serving.py --fallback-check
+bench:            ## /recommend and /similar latency, in-process and over HTTP → eval/results/latency_local.json
+	$(PY) scripts/bench_latency.py
+app:              ## API + UI on :7860 (no access log: it would print item ids)
+	$(PY) -m uvicorn app:app --port 7860 --no-access-log
+deploy:           ## the Hugging Face Space (needs `hf auth login`) → eval/results/latency_space.json
+	$(PY) scripts/deploy_space.py

@@ -1,0 +1,75 @@
+{
+  "machine": {
+    "platform": "macOS-26.5.1-arm64-arm-64bit",
+    "cpu": "arm",
+    "cpus": 8,
+    "python": "3.11.9",
+    "torch_threads": 4
+  },
+  "version": "0.1.0+daf64cc",
+  "k": 10,
+  "calls_per_endpoint": 300,
+  "histories": "1844 dev shoppers with a known item, cycled",
+  "in_process": {
+    "reranked": {
+      "n": 300,
+      "p50_ms": 13.11,
+      "p95_ms": 14.49,
+      "mean_ms": 12.98,
+      "server_p50_ms": 11.0
+    },
+    "hybrid": {
+      "n": 300,
+      "p50_ms": 2.9,
+      "p95_ms": 3.56,
+      "mean_ms": 3.19,
+      "server_p50_ms": 1.3
+    },
+    "sasrec": {
+      "n": 300,
+      "p50_ms": 3.19,
+      "p95_ms": 3.42,
+      "mean_ms": 3.19,
+      "server_p50_ms": 1.3
+    },
+    "similar": {
+      "n": 300,
+      "p50_ms": 2.04,
+      "p95_ms": 2.25,
+      "mean_ms": 2.07,
+      "server_p50_ms": 0.34
+    }
+  },
+  "http": {
+    "reranked": {
+      "n": 300,
+      "p50_ms": 12.8,
+      "p95_ms": 14.02,
+      "mean_ms": 12.56,
+      "server_p50_ms": 11.43
+    },
+    "hybrid": {
+      "n": 300,
+      "p50_ms": 2.49,
+      "p95_ms": 2.69,
+      "mean_ms": 2.42,
+      "server_p50_ms": 1.43
+    },
+    "sasrec": {
+      "n": 300,
+      "p50_ms": 2.05,
+      "p95_ms": 2.46,
+      "mean_ms": 2.12,
+      "server_p50_ms": 1.07
+    },
+    "similar": {
+      "n": 300,
+      "p50_ms": 1.18,
+      "p95_ms": 1.4,
+      "mean_ms": 1.19,
+      "server_p50_ms": 0.32
+    }
+  },
+  "target_p50_ms": 50,
+  "meets_target": true
+}

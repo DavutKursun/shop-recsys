@@ -1,0 +1,16 @@
+{
+  "split": "dev",
+  "cases": 8738,
+  "share_of_dev_cases": 0.093,
+  "targets_in_vocabulary": 0.416,
+  "recall@10_reranked_as_evaluated": 0.0025,
+  "recall@10_served_fallback": 0.0017,
+  "fallback_minus_reranked": {
+    "point": -0.0008,
+    "ci_low": -0.0019,
+    "ci_high": 0.0003,
+    "n_resamples": 500,
+    "significant": false
+  },
+  "effect_on_dev_recall@10": -0.0001
+}
