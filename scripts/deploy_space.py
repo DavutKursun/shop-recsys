@@ -128,7 +128,7 @@ def smoke(base: str, calls: int, out: Path, probe_ok: bool) -> dict:
     result = {"space": base, "version": health["version"], "hardware": "cpu-basic (2 vCPU)", "calls_per_model": calls, "k": 10,
               "latency": lat, "target_server_p50_ms": 50, "meets_target": all(v["server_p50_ms"] < 50 for v in lat.values()),
               "per_model_smoke": per_model, "build_probe_torch_faiss_lightgbm_ok": probe_ok, "libraries": health["libraries"],
-              "note": "server-side = latency_ms reported by the service; round trip = from a laptop in Europe, network included"}
+              "note": "server-side = latency_ms reported by the service; round trip = from the developer's laptop, network included"}
     out.write_text(json.dumps(result, indent=2), encoding="utf-8")
     return result
 

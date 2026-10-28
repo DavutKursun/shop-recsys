@@ -7,12 +7,17 @@ report directly. Never print any token or environment variable value. Section 0 
 
 ## 0. Status (updated 2026-10-28)
 
-**Milestone 4 is done: the test window was opened ONCE, on 2026-10-28, with `python scripts/evaluate.py --split test --final
---sampled-demo` (plus `python scripts/cold_items.py --split test --final` for the cold-item line). Test recall@10: reranked
-0.324 [0.315, 0.334] vs hybrid 0.295 (paired +0.029 [+0.028, +0.031]) and SASRec 0.270 (−0.025 vs hybrid); all nine paired dev
-conclusions replicated; every model dropped ≈ 0.03 dev → test (window drift: reachable targets 79.2% → 74.5%), the reranker's
-margin over the hybrid shrank by 0.004. DESIGN.md §5–6, docs/model_card.md, README results. Never run on test again.
-Start at Milestone 5: serve and ship.**
+**Project complete (2026-10-28).** Live demo: https://davutkursun-shop-recsys.hf.space (Docker Space DavutKursun/shop-recsys,
+cpu-basic; `/ui`, `/docs`). Test window read once on 2026-10-28 (`python scripts/evaluate.py --split test --final --sampled-demo`):
+reranked recall@10 0.324 [0.315, 0.334] vs hybrid 0.295, paired +0.029 [+0.028, +0.031]; every dev conclusion replicated.
+Served through the evaluation's code path (200/200 identical top-10s); live `/recommend` (reranked) server-side p50
+34 ms, p95 54 ms on 2 vCPUs. Never run on test again.
+
+Next steps, if the project continues (DESIGN.md §6): a purchase-weighted or two-objective reranker (the reranker finds 58% of
+purchases against the lookup's 63%); retrieval for the 56% of cases no source proposes (larger SASRec, co-purchase graph,
+lower vocabulary threshold); a content item tower for new items (H&M data has names and images); a session-aware history
+cut; sparse serving paths for the baselines; retraining on a schedule (one month of drift cost 0.03 recall@10). To update
+the live demo: `make serving deploy` (export, upload, wait for RUNNING, smoke test, `eval/results/latency_space.json`).**
 
 Implemented in the starter (`recsys/`):
 - `config.py` (paths, window rules, model configs, seeds), `schema.py` (RecommendRequest / RecommendResponse, Pydantic)
@@ -44,7 +49,9 @@ Implemented in the starter (`recsys/`):
   history-length bucket and target type, candidate-union recall), the markdown table
 - scripts: `download.py`, `build_dataset.py`, `train_baselines.py`, `train_neural.py --model sasrec|two_tower`,
   `build_index.py`, `train_reranker.py`, `evaluate.py` (refuses `--split test` without `--final`), `synthetic_check.py`
-- NOT yet: `app.py` (FastAPI + Gradio), Dockerfile / Space, DESIGN.md content, model card, GIF, plots.
+- Added in M2–M5: the hybrid baseline, dense reranker features, `serving.py` / `api.py` / `ui.py` and `app.py` (FastAPI +
+  Gradio), the Dockerfile and the Space, `export_serving.py`, `bench_latency.py`, `deploy_space.py`, `demo_gif.py`, plots,
+  DESIGN.md §1–7, the model card.
 
 No LLM anywhere; no API key; CPU (or Apple MPS) is enough. Raw files (≈ 1 GB) and parquet are gitignored.
 

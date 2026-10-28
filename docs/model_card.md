@@ -2,7 +2,7 @@
 
 A two-stage next-item recommender for an e-commerce click stream: candidate retrieval from seven sources (four
 classical baselines, a hybrid of two of them, a SASRec transformer and a two-tower model, the last two written from
-scratch in PyTorch) and a LightGBM LambdaRank reranker over the union of their candidates. Version 0.1, 2026-10-28.
+scratch in PyTorch) and a LightGBM LambdaRank reranker over the union of their candidates. Version 0.1, 2026-10-28. Live demo and API: https://davutkursun-shop-recsys.hf.space (version 0.1.0+5d6f6d9).
 Design notes with every table and the choices behind them: [DESIGN.md](DESIGN.md).
 
 ## Data and licence
@@ -87,7 +87,10 @@ Where the models stand on the slices that matter (recall@10, test): first-click 
   API requires at least one item.
 - **Crawler tail.** 1% of cases come from visitors with more than 1,800 earlier events; histories are cut at 50 and
   intervals cluster by visitor, but the 20+ history rows are not representative of shoppers.
-- **Latency numbers** are from one laptop CPU (whole request 10 ms p50); the Space CPU will be slower.
+- **Latency.** On the Space (cpu-basic, 2 vCPUs) a reranked `/recommend` takes 34 ms server-side at the median and 54 ms at p95
+  (30 calls; 11 ms on a laptop); a single model 2–5 ms. The network round trip comes on top.
+- **Fallback.** A history with no vocabulary item (9.3% of dev cases) is served the last training week's popular items instead of
+  the reranker; on those cases both are near zero (recall@10 0.0017 vs 0.0025, paired -0.0008 [-0.0019, +0.0003]).
 
 ## Reproduce
 

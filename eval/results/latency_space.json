@@ -1,0 +1,98 @@
+{
+  "space": "https://davutkursun-shop-recsys.hf.space",
+  "version": "0.1.0+5d6f6d9",
+  "hardware": "cpu-basic (2 vCPU)",
+  "calls_per_model": 30,
+  "k": 10,
+  "latency": {
+    "reranked": {
+      "n": 30,
+      "round_trip_p50_ms": 191.2,
+      "round_trip_p95_ms": 220.9,
+      "server_p50_ms": 33.83,
+      "server_p95_ms": 54.26
+    },
+    "hybrid": {
+      "n": 30,
+      "round_trip_p50_ms": 157.7,
+      "round_trip_p95_ms": 176.5,
+      "server_p50_ms": 2.08,
+      "server_p95_ms": 9.1
+    },
+    "sasrec": {
+      "n": 30,
+      "round_trip_p50_ms": 159.7,
+      "round_trip_p95_ms": 174.6,
+      "server_p50_ms": 4.76,
+      "server_p95_ms": 7.89
+    }
+  },
+  "target_server_p50_ms": 50,
+  "meets_target": true,
+  "per_model_smoke": {
+    "popularity": {
+      "items": 10,
+      "first": 5411,
+      "seen_before": 0,
+      "sources_present": true,
+      "latency_ms": 2.56
+    },
+    "repeat": {
+      "items": 10,
+      "first": 266439,
+      "seen_before": 2,
+      "sources_present": true,
+      "latency_ms": 1.13
+    },
+    "hybrid": {
+      "items": 10,
+      "first": 266439,
+      "seen_before": 2,
+      "sources_present": true,
+      "latency_ms": 2.06
+    },
+    "markov": {
+      "items": 10,
+      "first": 184909,
+      "seen_before": 2,
+      "sources_present": true,
+      "latency_ms": 1.76
+    },
+    "item_knn": {
+      "items": 10,
+      "first": 184909,
+      "seen_before": 1,
+      "sources_present": true,
+      "latency_ms": 1.97
+    },
+    "two_tower": {
+      "items": 10,
+      "first": 266439,
+      "seen_before": 2,
+      "sources_present": true,
+      "latency_ms": 4.02
+    },
+    "sasrec": {
+      "items": 10,
+      "first": 266439,
+      "seen_before": 2,
+      "sources_present": true,
+      "latency_ms": 5.6
+    },
+    "reranked": {
+      "items": 10,
+      "first": 344435,
+      "seen_before": 2,
+      "sources_present": true,
+      "latency_ms": 20.82
+    }
+  },
+  "build_probe_torch_faiss_lightgbm_ok": true,
+  "libraries": {
+    "torch": "2.14.1+cpu",
+    "faiss": "1.15.1",
+    "lightgbm": "4.7.0",
+    "numpy": "2.4.6"
+  },
+  "note": "server-side = latency_ms reported by the service; round trip = from the developer's laptop, network included"
+}

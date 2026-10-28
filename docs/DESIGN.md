@@ -740,3 +740,44 @@ other, item-kNN overtakes repeat, and popularity reaches 0.32. Over the full cat
   tie); try a listwise loss for SASRec with hard negatives from item-kNN instead of uniform ones; serve the
   baselines through sparse lookups so a request is 3 ms, not 10; and keep the bootstrap, but add a
   stratified-by-history version so the CIs of the tail rows are honest too.
+
+## 7. Serving and the live demo (M5)
+
+**One code path.** `scripts/export_serving.py` writes the served bundle to `serving/` (103.3 MB, gitignored, uploaded to
+the Space): the eight models as trained, a recent-popularity fallback, the L2-normalised SASRec item matrix for
+`/similar`, the items table with category paths from `category_tree.csv`, and 2,000 anonymous dev shoppers (500 per
+history bucket, one case per visitor; raw item ids and the window of each event, no visitor id, no timestamp).
+`recsys/serving.py` answers every request through `pipeline.recommend`, which makes the calls `evaluate_models` makes
+(`source_topk`, then `Reranker.rerank` with every source's dense scores). The export checks it on the way out: every
+shopper's served history equals the history the evaluation built for that case, and the served reranked top-10
+equals the batched evaluation path's top-10 for 200/200 shoppers with a known history item.
+
+**The one place the served system differs.** A history with no vocabulary item gets the last training week's most
+popular items, flagged in the response, instead of the reranker run on unknown tokens. That is 9.3% of dev cases
+(156 of the 2,000 demo shoppers). Measured on dev (`--fallback-check`, `eval/results/fallback_dev.json`): both are
+near zero on those cases, recall@10 0.0017 for the fallback against 0.0025 for the evaluated reranker,
+paired -0.0008 [-0.0019, +0.0003]; the effect on the dev headline is -0.0001. The test numbers therefore
+describe the served system.
+
+**Latency.** `scripts/bench_latency.py`, k = 10, cycling through the shoppers' histories; server-side p50 / p95 in ms:
+
+| | reranked | hybrid | SASRec |
+|---|---|---|---|
+| laptop, over HTTP (300 calls) | 11.4 / 14.0* | 1.4 / 2.7* | 1.1 / 2.5* |
+| Space, cpu-basic 2 vCPUs (30 calls) | 33.8 / 54.3 | 2.1 / 9.1 | 4.8 / 7.9 |
+
+\* local p95 is the client-side figure (server-side p95 is not recorded locally). The reranked request runs every
+source once and the reranker over about 69 candidates; the 50 ms p50 target holds on the Space with room to spare,
+the p95 just above it on a shared CPU. Round trips from the developer's laptop add 150–190 ms of network.
+
+**The image.** `python:3.11-slim`, non-root uid 1000, `OMP_NUM_THREADS=2`, the CPU wheel of torch, every serving
+dependency pinned (`requirements-space.txt`). The build runs torch, faiss and LightGBM together in one process and
+prints `OPENMP_PROBE_OK`: on Linux their OpenMP runtimes coexist, so the macOS fix of M1 is not needed there. uvicorn's
+access log is off because it would print `/similar/<item id>`; the app logs route templates, counts and latencies.
+
+**The demo.** Shopper (five lists side by side with their test recall@10, seen-before and next-item marks, the
+sources behind every reranked item, a sentence on why the reranked list differs from the hybrid), Item (neighbours by
+SASRec embedding cosine), Evidence (the committed test tables and figures), About. The shopper shown first is chosen
+by a stated rule (the first whose reranked list finds a next item the hybrid misses); on the 2,000 shoppers the
+reranked list finds the next item for 0.345 of them.
+
