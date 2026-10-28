@@ -1,0 +1,22 @@
+{
+  "split": "test",
+  "k": 10,
+  "n_cases": 95905,
+  "vocabulary_items": 69784,
+  "catalogue_items_with_category": 417053,
+  "new_items_added": 355310,
+  "distinct_new_item_vectors": 996,
+  "share_reachable_vocabulary": 0.7445,
+  "share_reachable_with_catalogue": 0.9719,
+  "newly_reachable_cases": 21809,
+  "share_newly_reachable": 0.2274,
+  "recall@10": {
+    "two_tower_vocabulary_only_overall": 0.2091,
+    "two_tower+catalogue_overall": 0.207,
+    "two_tower+catalogue_on_newly_reachable": 0.0004,
+    "two_tower+catalogue_on_vocabulary_targets": 0.278,
+    "two_tower_vocabulary_only_on_vocabulary_targets": 0.2809
+  },
+  "mrr@10_newly_reachable": 0.0001,
+  "seconds": 88.5
+}

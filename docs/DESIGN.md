@@ -600,6 +600,143 @@ python scripts/evaluate.py --split dev --sampled-demo
 python scripts/cold_items.py && python scripts/bench_sources.py && python scripts/plots.py
 ```
 
-## 5. Test results (M4) — run once on _(date)_
+## 5. Test results (M4) — run once on 2026-10-28
+
+`python scripts/evaluate.py --split test --final --sampled-demo`, executed once, with every model frozen as chosen on
+dev or the rerank window: the five baselines fitted on events before T0, SASRec with 4,096 negatives (best epoch 11),
+the two-tower with logQ (best epoch 5), the reranker with K = 20 per source (146 rounds). Test window
+2015-09-04 → 2015-09-18: 95,905 cases from 38,804 visitors; 17.8 min on CPU, peak 1.4 GB. Reachable targets 74.5%
+(dev 79.2%), repeat targets 23.3% (dev 25.5%), warm visitors 39.1%. Files: `eval/results/test-summary.md` / `.json`,
+`dev_vs_test.md`, `cold_items-test.json`.
+
+### 5.1 The test table
+
+| model | recall@10 | recall@20 | ndcg@10 | mrr@10 | coverage@10 | pop. quantile |
+|---|---|---|---|---|---|---|
+| **reranked** | **0.3244 [0.3150, 0.3340]** | 0.3669 [0.3577, 0.3770] | 0.2352 [0.2281, 0.2428] | 0.2072 [0.2006, 0.2143] | 0.711 | 0.191 |
+| hybrid | 0.2953 [0.2858, 0.3044] | 0.3198 [0.3101, 0.3296] | 0.2059 [0.1988, 0.2132] | 0.1771 [0.1706, 0.1838] | 0.599 | 0.141 |
+| sasrec | 0.2700 [0.2606, 0.2796] | 0.3153 [0.3048, 0.3260] | 0.1829 [0.1758, 0.1903] | 0.1556 [0.1495, 0.1623] | 0.740 | 0.227 |
+| repeat | 0.2188 [0.2114, 0.2258] | 0.2241 [0.2165, 0.2312] | 0.1716 [0.1654, 0.1778] | 0.1558 [0.1500, 0.1616] | 0.428 | 0.085 |
+| two_tower | 0.2091 [0.2012, 0.2173] | 0.2530 [0.2441, 0.2618] | 0.1346 [0.1292, 0.1401] | 0.1115 [0.1068, 0.1163] | 0.751 | 0.214 |
+| markov | 0.1264 [0.1218, 0.1307] | 0.1504 [0.1455, 0.1550] | 0.0783 [0.0754, 0.0813] | 0.0634 [0.0609, 0.0660] | 0.479 | 0.092 |
+| item_knn | 0.1253 [0.1206, 0.1300] | 0.1641 [0.1584, 0.1696] | 0.0713 [0.0685, 0.0742] | 0.0547 [0.0525, 0.0571] | 0.607 | 0.313 |
+| popularity | 0.0040 [0.0034, 0.0049] | 0.0071 [0.0062, 0.0080] | 0.0019 [0.0016, 0.0023] | 0.0013 [0.0010, 0.0015] | 0.000 | 0.000 |
+
+Candidate-union recall at the served K = 20, the reranker's ceiling on test: 0.3981 (dev 0.4405); the reranker
+converts 81% of it, as on dev.
+
+| paired difference, recall@10 (visitor bootstrap) | test | dev |
+|---|---|---|
+| **reranked − hybrid** | **+0.0291 [+0.0275, +0.0309]** | +0.0335 [+0.0316, +0.0359] |
+| reranked − sasrec | +0.0544 [+0.0516, +0.0574] | +0.0570 [+0.0540, +0.0604] |
+| sasrec − hybrid | −0.0253 [−0.0284, −0.0220] | −0.0235 [−0.0271, −0.0196] |
+| two_tower − hybrid | −0.0862 [−0.0896, −0.0827] | −0.0918 [−0.0960, −0.0870] |
+| repeat − hybrid | −0.0765 [−0.0800, −0.0730] | −0.0838 [−0.0870, −0.0800] |
+
+### 5.2 Breakdowns on test, recall@10
+
+| subset | n | repeat | hybrid | sasrec | two_tower | **reranked** |
+|---|---|---|---|---|---|---|
+| warm visitors | 37,461 | 0.210 | 0.234 | 0.198 | 0.152 | **0.253** |
+| cold visitors | 58,444 | 0.224 | 0.335 | 0.316 | 0.246 | **0.370** |
+| repeat targets | 22,310 | **0.936** | **0.936** | 0.749 | 0.535 | 0.932 |
+| new targets | 73,595 | 0.001 | 0.101 | 0.125 | 0.111 | **0.140** |
+| history 1 (first-click visitors) | 31,415 | 0.127 | 0.253 | 0.274 | 0.222 | **0.292** |
+| history 2–4 | 28,661 | 0.261 | 0.350 | 0.332 | 0.244 | **0.376** |
+| history 5–19 | 19,603 | 0.309 | 0.349 | 0.276 | 0.214 | **0.369** |
+| history 20+ | 16,226 | 0.215 | 0.216 | 0.147 | 0.117 | **0.243** |
+| target = view | 93,551 | 0.217 | 0.294 | 0.271 | 0.210 | **0.323** |
+| target = add-to-cart | 1,719 | 0.195 | 0.265 | 0.189 | 0.145 | **0.283** |
+| target = transaction | 635 | 0.617 | **0.627** | 0.288 | 0.192 | 0.584 |
+
+![test: recall by history](img/recall_by_history_test.png)
+
+![test: reranked vs hybrid vs SASRec](img/reranked_by_history_test.png)
+
+### 5.3 Dev → test: what replicated and what did not
+
+| model | dev recall@10 | test recall@10 | change |
+|---|---|---|---|
+| reranked | 0.3588 | 0.3244 | −0.034 |
+| hybrid | 0.3254 | 0.2953 | −0.030 |
+| sasrec | 0.3018 | 0.2700 | −0.032 |
+| repeat | 0.2416 | 0.2188 | −0.023 |
+| two_tower | 0.2336 | 0.2091 | −0.024 |
+| markov | 0.1397 | 0.1264 | −0.013 |
+| item_knn | 0.1365 | 0.1253 | −0.011 |
+| popularity | 0.0030 | 0.0040 | +0.001 |
+| candidate-union ceiling (K = 20) | 0.4405 | 0.3981 | −0.042 |
+
+**Replicated: every conclusion.** All nine paired comparisons keep their sign with intervals that exclude zero on
+both windows (`eval/results/dev_vs_test.md`): the reranker beats the hybrid, the hybrid beats SASRec, SASRec beats
+the two-tower and repeat, and popularity is nothing. The order of the eight models is identical, the reranker wins
+every history bucket and both visitor groups again, the gain still comes from new targets (0.767 × (0.140 − 0.101)
+= +0.030 against −0.001 on repeat targets), and the sampled-negatives flip is the same (§5.5).
+
+**What moved: the level, for everyone.** Every model lost 0.01–0.03 recall@10, the untuned ones included (the
+hybrid −0.030, with no parameter chosen anywhere). The test fortnight is a further two weeks from T0, so more of its
+targets are products the vocabulary never saw: reachable targets fall from 79.2% to 74.5%, repeat targets from
+25.5% to 23.3%, and the candidate ceiling from 0.44 to 0.40. That is window drift, and it is the strongest argument
+in this project for retraining on a schedule. **Tuning optimism**, the part of the drop that dev selection could
+have bought: reranked −0.034 and SASRec −0.032 against the hybrid's −0.030, so net of the window the reranker's
+margin over the hybrid shrank from +0.034 to +0.029 (−0.004) and SASRec's deficit grew from −0.024 to −0.025
+(−0.002). Half a point of recall, which is what choosing one epoch on 20,000 cases and one candidate budget on
+4,000 cases should cost.
+
+**The transactions line, again.** On 635 test purchases the reranked list finds 58.4% and the hybrid 62.7%, the
+same four-point gap as on dev; add-to-carts go the other way (0.283 vs 0.265). The reranker is a click model, and
+a shop that cares about the purchase slice needs the purchase-weighted objective of §6 before it ships this one.
+
+### 5.4 The cold-item line on test
+
+`python scripts/cold_items.py --split test --final`, once, no changes: adding the 355,310 catalogue items through the
+category path makes test targets reachable 74.5% → 97.2% (21,809 newly reachable cases, 22.7% of the window), with
+recall@10 of **0.0004** on those targets, 0.207 overall (vocabulary-only 0.209) and 0.278 on vocabulary targets
+(0.281 without the flood). The dev verdict stands: reachable, not findable, until there is content to tell the
+items of a category apart.
+
+### 5.5 The sampled-negatives demonstration on test
+
+First 5,000 test cases, HR@10 over the full catalogue next to HR@10 against 100 uniformly sampled negatives:
+
+| model | full-catalogue HR@10 | HR@10 vs 100 sampled negatives |
+|---|---|---|
+| hybrid | 0.324 | 0.490 |
+| sasrec | 0.302 | 0.595 |
+| repeat | 0.233 | 0.440 |
+| two_tower | 0.232 | 0.598 |
+| markov | 0.139 | 0.385 |
+| item_knn | 0.138 | 0.455 |
+| popularity | 0.004 | 0.320 |
+
+![test: sampled vs full](img/sampled_vs_full_test.png)
+
+Same flips as on dev: with sampled negatives the two embedding models "beat" the hybrid by 0.1 and tie each
+other, item-kNN overtakes repeat, and popularity reaches 0.32. Over the full catalogue the hybrid leads SASRec by
+0.02 and SASRec leads the two-tower by 0.07.
+
 
 ## 6. What I would do differently
+
+- **Rank for the purchase, not the click.** 97% of targets are views, so every model here optimises clicks, and the
+  reranker gives back six points of the lookup's recall on transactions (§4.4). A purchase-weighted LambdaRank
+  label (or two heads, one per objective, blended at serving time by the shop's margin) is a one-day change with
+  the event-weighting hook already in `SASRecConfig`; it needs its own metric column (recall on add-to-cart and
+  transaction targets, with CIs) in every table, which this project reports but does not optimise.
+- **An item tower with content for cold items.** Reachable is not findable: 355,310 catalogue items share 996
+  category vectors and get 0.0006 recall (§4.5). With product text or images (H&M, Amazon reviews) the tower
+  could tell new items apart; on RetailRocket the property values are hashed, so the only honest option is to
+  show the category's bestsellers for a new item, which is a rule, not a model.
+- **Retrieval, not reranking, for the next gain.** 56% of cases have a target that no source proposes (20.8%
+  outside the vocabulary, the rest vocabulary items that none of seven retrievers ranks in its top-20), and the
+  reranker already converts 81% of its ceiling. Candidate work would come first: a larger SASRec (dim 128, 3
+  layers, trained on every position of the last 200 events), a co-purchase graph for the transaction slice, and
+  the vocabulary threshold lowered from 5 to 2 events with a category fallback embedding for the rest.
+- **A session-aware history cut.** The history is "the last 50 events, whatever the gaps" and the heavy tail
+  (1% of cases with more than 1,800 earlier events) looks like crawlers. Cutting the history at the current
+  session plus the last k sessions, and down-weighting visitors whose event rate is implausible for a person,
+  would make the warm and 20+ rows more representative of shoppers and cheaper to serve.
+- **Smaller things.** Choose the reranker budget on more than 4,000 held-out cases (the three budgets were a
+  tie); try a listwise loss for SASRec with hard negatives from item-kNN instead of uniform ones; serve the
+  baselines through sparse lookups so a request is 3 ms, not 10; and keep the bootstrap, but add a
+  stratified-by-history version so the CIs of the tail rows are honest too.

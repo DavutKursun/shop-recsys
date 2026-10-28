@@ -7,12 +7,12 @@ report directly. Never print any token or environment variable value. Section 0 
 
 ## 0. Status (updated 2026-10-28)
 
-**Milestone 3 is done (2026-10-28): LightGBM LambdaRank reranker over the union of all seven sources (dense scores from
-every source, K = 20 per source chosen on the rerank window's held-out cases). Dev recall@10: reranked 0.359 [0.349, 0.368]
-vs hybrid 0.325 (paired +0.034 [+0.032, +0.036]) and SASRec 0.302 (+0.057); the gain is on new targets (0.160 vs 0.114), repeat
-targets stay at the lookup's 0.94, transactions lose 6 points (0.656 vs 0.714). Served index: exact FAISS (0.3 ms per query;
-HNSW is not faster where it is accurate). New-item cold start via the category: targets reachable 79% → 98%, recall on them
-0.0006. Whole request 10 ms p50 on this Mac. DESIGN.md §4. Start at Milestone 4: the single test run.**
+**Milestone 4 is done: the test window was opened ONCE, on 2026-10-28, with `python scripts/evaluate.py --split test --final
+--sampled-demo` (plus `python scripts/cold_items.py --split test --final` for the cold-item line). Test recall@10: reranked
+0.324 [0.315, 0.334] vs hybrid 0.295 (paired +0.029 [+0.028, +0.031]) and SASRec 0.270 (−0.025 vs hybrid); all nine paired dev
+conclusions replicated; every model dropped ≈ 0.03 dev → test (window drift: reachable targets 79.2% → 74.5%), the reranker's
+margin over the hybrid shrank by 0.004. DESIGN.md §5–6, docs/model_card.md, README results. Never run on test again.
+Start at Milestone 5: serve and ship.**
 
 Implemented in the starter (`recsys/`):
 - `config.py` (paths, window rules, model configs, seeds), `schema.py` (RecommendRequest / RecommendResponse, Pydantic)
@@ -84,7 +84,9 @@ into (random splits, sampled metrics, no popularity baseline, no CIs). Interview
 - **Full-catalogue ranking.** Every metric ranks all vocabulary items. Targets outside the vocabulary count as
   misses and their share is reported. Sampled metrics appear once, as a demonstration of why not (§5).
 - **One look at the test window.** `scripts/evaluate.py --split test` needs `--final`, runs once in M4, and the
-  date goes into this file.
+  date goes into this file. Done on 2026-10-28: `python scripts/evaluate.py --split test --final --sampled-demo` and
+  `python scripts/cold_items.py --split test --final`, each once; results in `eval/results/test-summary.*` and
+  `cold_items-test.json`. Not to be run again.
 - **The baselines stay in every table.** Popularity, repeat, Markov and item-kNN are reported wherever a learned
   model is; a learned model that does not beat them is reported as such.
 - **Uncertainty is a number.** User-cluster bootstrap CIs (≥ 500 resamples) on every metric; paired

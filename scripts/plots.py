@@ -39,6 +39,11 @@ plt.rcParams.update({"font.family": ["Helvetica Neue", "Helvetica", "Arial", "De
                      "savefig.facecolor": SURFACE, "axes.titlecolor": INK, "legend.frameon": False})
 
 
+def _suffix(split: str) -> str:
+    """Dev figures keep their names; any other split (test) gets a labelled file of its own."""
+    return "" if split == "dev" else f"_{split}"
+
+
 def chrome(ax, ylabel: str | None = None, ymax: float | None = None) -> None:
     """Recessive chrome: hairline solid gridlines, one baseline, no box."""
     for side in ("top", "right", "left"):
@@ -130,7 +135,7 @@ def recall_by_history(summary: dict, out: Path, split: str) -> Path:
     handles = [plt.Line2D([], [], marker="s", linestyle="none", markersize=8, color=COLOR[m], label=LABEL[m]) for m in models]
     ax.legend(handles=handles, ncol=n, loc="upper center", bbox_to_anchor=(0.5, -0.3), fontsize=8.5, labelcolor=INK2)  # below the axis: never over a bar
     fig.tight_layout()
-    path = out / "recall_by_history.png"
+    path = out / f"recall_by_history{_suffix(split)}.png"
     fig.savefig(path, bbox_inches="tight")
     plt.close(fig)
     return path
@@ -158,7 +163,7 @@ def sampled_vs_full(summary: dict, out: Path, split: str) -> Path | None:
                plt.Line2D([], [], marker="s", linestyle="none", markersize=8, color=SLOTS[1], label=f"target vs {demo['n_negatives']} uniformly sampled negatives")]
     ax.legend(handles=handles, loc="upper right", fontsize=8.5, labelcolor=INK2)
     fig.tight_layout()
-    path = out / "sampled_vs_full.png"
+    path = out / f"sampled_vs_full{_suffix(split)}.png"
     fig.savefig(path, bbox_inches="tight")
     plt.close(fig)
     return path
@@ -256,7 +261,7 @@ def reranked_by_history(summary: dict, out: Path, split: str) -> Path | None:
     handles = [plt.Line2D([], [], marker="s", linestyle="none", markersize=8, color=COLOR[m], label=LABEL[m]) for m in models]
     ax.legend(handles=handles, ncol=len(models), loc="upper center", bbox_to_anchor=(0.5, -0.3), fontsize=8.5, labelcolor=INK2)
     fig.tight_layout()
-    path = out / "reranked_by_history.png"
+    path = out / f"reranked_by_history{_suffix(split)}.png"
     fig.savefig(path, bbox_inches="tight")
     plt.close(fig)
     return path
@@ -269,7 +274,7 @@ def main(argv=None) -> int:
     ap.add_argument("--out", type=Path, default=ROOT / "docs" / "img")
     a = ap.parse_args(argv)
     a.out.mkdir(parents=True, exist_ok=True)
-    made = [training_curves(a.results, a.out), ann_chart(a.results, a.out), feature_importance_chart(a.results, a.out)]
+    made = [training_curves(a.results, a.out), ann_chart(a.results, a.out), feature_importance_chart(a.results, a.out)] if a.split == "dev" else []
     summary_path = a.results / f"{a.split}-summary.json"
     if summary_path.exists():
         summary = json.loads(summary_path.read_text(encoding="utf-8"))
