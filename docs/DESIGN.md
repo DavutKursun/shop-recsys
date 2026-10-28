@@ -149,8 +149,223 @@ Sampling reorders the models (item-kNN overtakes repeat) and inflates popularity
 beat 100 random tail items instead of 69,784. §3 repeats the demonstration with the learned models.
 
 ## 3. SASRec and the two-tower model (M2)
-Losses, hyperparameters chosen once on dev, training curves, ablations (loss, max_len, logQ, event weights),
-the sampled-negatives demonstration.
+
+Both models are written from scratch in PyTorch (`recsys/sasrec.py`, `recsys/two_tower.py`) and trained on the
+240,351 training-window sequences with at least two events. The epoch is chosen by early stopping (patience 3) on
+recall@10 over a fixed 20,000-case dev subsample (`ds.cases("dev", max_cases=20000, seed=1)`); every run in this
+section is scored on that same subsample, and the choice between runs was made once, by `scripts/choose_config.py`,
+before the full dev evaluation in §3.5. Training logs: `eval/results/train_sasrec.json`,
+`eval/results/train_two_tower.json`; the choices: `eval/results/sasrec_choice.json`, `eval/results/two_tower_choice.json`.
+
+The bar is no longer popularity but the **hybrid** baseline added in this milestone (`recsys/baselines.py: Hybrid`):
+repeat first (the shopper's own items, most recent first), then the Markov continuation of the last items, then
+popularity. It is the union of the two complementary signals of §2 in one deterministic list.
+
+### 3.1 One epoch on CPU and on Apple MPS
+
+SASRec at the default configuration (dim 64, 2 layers, 2 heads, max_len 50, 1,024 negatives, batch 128), one epoch
+plus the dev check on 2,000 cases, measured with `/usr/bin/time -l`:
+
+| device | seconds per epoch | peak RSS | loss after the epoch | dev recall@10 (2k cases) |
+|---|---|---|---|---|
+| cpu (4 OpenMP threads) | 115.2 | 1.09 GB | 4.7191 | 0.2365 |
+| mps | 60.3 | 1.06 GB | 4.7191 | 0.2365 |
+
+Same numbers to four decimals on both devices; MPS is 1.9× faster, so everything below trains on MPS. Neither comes
+near the 15-minute threshold that would have called for a smaller max_len or fewer negatives.
+
+### 3.2 SASRec: the default run and three single-axis changes
+
+| run | change | best epoch / epochs run | dev recall@10 (20k) | s / epoch | total s |
+|---|---|---|---|---|---|
+| default | — | 12 / 15 | 0.2982 | 58.4 | 879 |
+| max_len 20 | max_len 50 → 20 | 20 / 20 | 0.2974 | 47.4 | 949 |
+| negatives 256 | 1,024 → 256 | 14 / 17 | 0.2809 | 51.7 | 881 |
+| **negatives 4,096 (chosen)** | 1,024 → 4,096 | 11 / 14 | **0.3056** | 57.7 | 810 |
+| event weights | view / add-to-cart / transaction targets weighted 1 / 3 / 5 | 13 / 16 | 0.2964 | 54.4 | 872 |
+
+- **Negatives are the one axis that matters.** 256 → 1,024 → 4,096 gives 0.281 → 0.298 → 0.306, monotone, at no
+  cost in time: the negatives are shared by the whole batch, so 4,096 of them is one extra (positions × 4,096)
+  matrix product. Uniform negatives are mostly tail items that are easy to rank below the target; more of them
+  make the sampled softmax a closer approximation of the full one, which is what the model is scored on.
+- **max_len 20 vs 50: no difference** (0.297 vs 0.298; the shorter run was still creeping up at epoch 20). The
+  median history has 3 events and 83% of cases have fewer than 20, so the extra positions are rarely used; the
+  17% with 20 or more are the heavy tail where every model is weak anyway (§2). The default 50 is kept because it
+  costs 11 s per epoch and nothing in quality.
+- **Event-weighted training does not help the all-events metric** (0.296 vs 0.298). 97.4% of targets are views, so
+  tripling the weight of 1.8% add-to-carts and quintupling 0.8% purchases barely moves the gradient; whether it
+  helps a purchase-only metric is a question for M6. The option stays (`SASRecConfig.event_weights`, off by
+  default; `--event-weights 1,3,5`).
+- The curves (§3.4) show why patience 3 is enough: dev recall is within 0.01 of its best from epoch 5 on while the
+  loss keeps falling; dropout 0.2 and the tied output embeddings keep the model from overfitting the 240k short
+  sequences.
+
+### 3.3 Two-tower: default and without the logQ correction
+
+634,653 (history, next item) training examples from the same sequences (every prediction point of the last 50
+positions, next item inside the vocabulary), batch 1,024, temperature 0.05, L2-normalised towers.
+
+| run | change | best epoch / epochs run | dev recall@10 (20k) | s / epoch | total s |
+|---|---|---|---|---|---|
+| **default (chosen)** | — | 5 / 8 | **0.2383** | 24.1 | 195 |
+| no logQ | logQ correction off | 5 / 8 | 0.2021 | 23.9 | 193 |
+
+The logQ correction is worth +0.036 recall@10, the largest single effect in this milestone (§3.8 says why). The
+two-tower peaks at epoch 5 and then overfits: its loss keeps falling while dev recall drops, which is what a model
+with a single dot product and no sequence structure does once the item embeddings memorise the training pairs.
+
+### 3.4 Training curves
+
+![training curves](img/training_curves.png)
+
+Loss per epoch and dev recall@10 per epoch for the chosen runs (SASRec with 4,096 negatives, two-tower default);
+the marker is the epoch whose weights were kept. The loss scales are not comparable across the two models.
+
+### 3.5 Every model on the full dev window
+
+`python scripts/evaluate.py --split dev --no-rerank --sampled-demo`: 93,937 cases from 38,012 visitors, full
+catalogue of 69,784 items, 500 visitor-bootstrap resamples (9.9 min on CPU, peak 1.96 GB). Point [95% CI].
+
+| model | recall@10 | recall@20 | ndcg@10 | mrr@10 | coverage@10 | pop. quantile |
+|---|---|---|---|---|---|---|
+| hybrid | 0.3254 [0.3149, 0.3347] | 0.3520 [0.3407, 0.3619] | 0.2279 [0.2199, 0.2355] | 0.1965 [0.1890, 0.2035] | 0.602 | 0.141 |
+| sasrec | 0.3018 [0.2912, 0.3115] | 0.3521 [0.3410, 0.3626] | 0.2050 [0.1971, 0.2128] | 0.1748 [0.1676, 0.1816] | 0.740 | 0.222 |
+| repeat | 0.2416 [0.2336, 0.2493] | 0.2481 [0.2404, 0.2556] | 0.1906 [0.1835, 0.1976] | 0.1736 [0.1666, 0.1802] | 0.434 | 0.083 |
+| two_tower | 0.2336 [0.2255, 0.2416] | 0.2816 [0.2720, 0.2907] | 0.1514 [0.1458, 0.1573] | 0.1259 [0.1210, 0.1312] | 0.751 | 0.211 |
+| markov | 0.1396 [0.1355, 0.1435] | 0.1653 [0.1607, 0.1698] | 0.0859 [0.0833, 0.0885] | 0.0693 [0.0669, 0.0714] | 0.488 | 0.097 |
+| item_knn | 0.1364 [0.1320, 0.1408] | 0.1790 [0.1733, 0.1846] | 0.0782 [0.0758, 0.0807] | 0.0603 [0.0583, 0.0622] | 0.609 | 0.315 |
+| popularity | 0.0030 [0.0024, 0.0036] | 0.0072 [0.0063, 0.0082] | 0.0014 [0.0011, 0.0017] | 0.0009 [0.0007, 0.0011] | 0.000 | 0.000 |
+
+Paired visitor-bootstrap differences in recall@10 against the best baseline, which is now the hybrid:
+
+| comparison | difference [95% CI] | |
+|---|---|---|
+| sasrec − hybrid | −0.0235 [−0.0271, −0.0196] | SASRec does not beat the hybrid |
+| two_tower − hybrid | −0.0918 [−0.0960, −0.0870] | the two-tower does not beat the hybrid, nor repeat alone |
+| repeat − hybrid | −0.0838 [−0.0870, −0.0800] | |
+| markov − hybrid | −0.1857 [−0.1937, −0.1764] | |
+| item_knn − hybrid | −0.1889 [−0.1975, −0.1798] | |
+| popularity − hybrid | −0.3223 [−0.3318, −0.3119] | |
+
+**The plain answer.** Neither learned model beats the hybrid on dev recall@10; both intervals exclude zero on the
+wrong side. SASRec is 0.024 below it (and ties it at recall@20: 0.3521 vs 0.3520, with much wider coverage, 0.74 vs
+0.60); the two-tower is 0.092 below it and 0.008 below plain repeat. Compared with the bar that most papers use,
+every learned model beats popularity a hundredfold, which says nothing. Compared with the hybrid, the honest line is
+that a two-layer SASRec with the right loss recovers 93% of a deterministic rule's recall in a single list and wins
+where the rule cannot look: new targets and one-event histories. The breakdown says exactly where.
+
+### 3.6 Where each model wins and loses
+
+Recall@10 by subset (n = cases):
+
+| subset | n | popularity | repeat | hybrid | markov | item_knn | two_tower | sasrec |
+|---|---|---|---|---|---|---|---|---|
+| warm visitors | 36,736 | 0.0033 | 0.2300 | 0.2577 | 0.0817 | 0.0791 | 0.1798 | 0.2226 |
+| cold visitors | 57,201 | 0.0028 | 0.2490 | 0.3688 | 0.1768 | 0.1733 | 0.2681 | 0.3527 |
+| repeat targets | 23,929 | 0.0076 | 0.9448 | 0.9449 | 0.1563 | 0.1423 | 0.5536 | 0.7661 |
+| new targets | 70,008 | 0.0015 | 0.0012 | 0.1136 | 0.1339 | 0.1345 | 0.1242 | **0.1431** |
+| history 1 | 30,878 | 0.0028 | 0.1436 | 0.2801 | 0.1411 | 0.1383 | 0.2421 | **0.3052** |
+| history 2–4 | 28,114 | 0.0038 | 0.2820 | 0.3806 | 0.1669 | 0.1587 | 0.2688 | 0.3620 |
+| history 5–19 | 19,158 | 0.0028 | 0.3508 | 0.3960 | 0.1397 | 0.1412 | 0.2427 | 0.3149 |
+| history 20+ | 15,787 | 0.0024 | 0.2289 | 0.2297 | 0.0880 | 0.0875 | 0.1432 | 0.1720 |
+| target = view | 91,480 | 0.0030 | 0.2380 | 0.3224 | 0.1398 | 0.1366 | 0.2348 | 0.3032 |
+| target = add-to-cart | 1,715 | 0.0035 | 0.2315 | 0.3149 | 0.1539 | 0.1574 | 0.1971 | 0.2554 |
+| target = transaction | 742 | 0.0054 | 0.7089 | 0.7143 | 0.0863 | 0.0741 | 0.1698 | 0.2372 |
+
+![recall by history](img/recall_by_history.png)
+
+**New targets vs repeat targets is the whole story.** On the 74.5% of cases whose target the visitor has never
+opened, SASRec is the best model there is: 0.143 against 0.134 for Markov, 0.135 for item-kNN and 0.114 for the
+hybrid, whose top slots are taken by seen items that are, by definition, wrong on these cases. On the 25.5% of
+repeat targets SASRec finds the item 76.6% of the time, which is five times Markov and the proof that a sequence
+model learns re-visits from data, but the hybrid's lookup finds it 94.5% of the time. The arithmetic of the paired
+difference is just these two rows: 0.255 × (0.766 − 0.945) = −0.046 lost on repeats, 0.745 × (0.143 − 0.114) =
++0.022 won on new targets, net −0.024. The same split explains the history buckets (SASRec wins only with a
+single-event history, where there is nothing to repeat but the one item it also ranks first), the warm/cold rows
+(warm visitors have longer, repeat-heavier histories) and the business line: 71% of purchases are repeats, so the
+hybrid finds 0.714 of transactions and SASRec 0.237. The two-tower is weaker on both halves (0.554 on repeats,
+0.124 on new targets, below Markov); it earns its place in M3 as the retrieval model with a category path for new
+items, not as a ranker.
+
+### 3.7 The sampled-negatives demonstration
+
+The same 5,000 dev cases (the first 5,000), each model's HR@10 against the full catalogue next to its HR@10 when
+the target only competes with 100 uniformly sampled negatives, the protocol of many papers:
+
+| model | full-catalogue HR@10 | HR@10 vs 100 sampled negatives |
+|---|---|---|
+| hybrid | 0.333 | 0.530 |
+| sasrec | 0.321 | 0.647 |
+| two_tower | 0.250 | 0.643 |
+| repeat | 0.249 | 0.474 |
+| markov | 0.132 | 0.406 |
+| item_knn | 0.132 | 0.489 |
+| popularity | 0.001 | 0.335 |
+
+![sampled vs full](img/sampled_vs_full.png)
+
+Sampling reorders the models. Under the full catalogue the hybrid leads SASRec by 0.012 and the two-tower trails
+SASRec by 0.071; with 100 sampled negatives SASRec "beats" the hybrid by 0.117 and the two-tower ties SASRec
+(0.643 vs 0.647). Item-kNN overtakes repeat, Markov drops below both, and popularity climbs from 0.001 to 0.335.
+The mechanism (Krichene & Rendle, KDD 2020): a sampled metric only asks whether the target beats 100 mostly
+obscure items, which rewards models that spread probability smoothly over the catalogue (the embedding models,
+item-kNN) and punishes models that put everything on a few items and nothing elsewhere (repeat, the hybrid), while
+the shopper sees ten items out of 69,784, which is what the full ranking measures. Every number in this project
+is the full ranking; this table is the reason.
+
+### 3.8 Why these two losses
+
+**SASRec: a sampled softmax with uniform negatives.** The model predicts the next item at every one of the 50
+positions, so a full softmax costs batch × positions × catalogue logits: 128 × 50 × 69,784 ≈ 450M floats, 1.8 GB
+per step, for a gradient that is dominated by the 69,000 items that were never going to be ranked near the target.
+The sampled softmax keeps the target and N uniformly drawn negatives, shared by the whole batch, and applies
+cross-entropy to that short list. Uniform sampling is the one proposal that needs no correction term: the sampled
+softmax subtracts log Q(j) from every candidate's logit, and with Q uniform that is the same constant for every
+item, which cancels in the softmax. It is also why the ablation goes the way it does: uniform negatives are mostly
+easy, and the approximation improves with their number, so 4,096 beats 1,024 beats 256 at essentially no cost (the
+negatives are shared, so the extra work is one matrix product). An accidental hit (a negative equal to the target)
+is masked out. The original SASRec paper used a binary cross-entropy with one negative per position; cross-entropy
+over many negatives is the change that Klenitskiy & Vasilev (RecSys 2023) showed closes most of the gap to
+BERT4Rec, and it is the loss here.
+
+**Two-tower: in-batch negatives with the logQ correction.** The two-tower model exists to be served through a
+nearest-neighbour index, so its score must be a dot product between a user vector and an item vector, and it is
+trained the way it is served: the other 1,023 positives in the batch are the negatives, which are free and, because
+positives are drawn in proportion to how often items are bought and viewed, they are hard negatives that look like
+real candidates. That proportionality is also the bias: a popular item appears as a negative far more often than a
+rare one and gets pushed down accordingly, so the softmax that the loss optimises is conditional on the batch's
+sampling distribution, not on the shopper. The correction of Yi et al. (RecSys 2019) subtracts log q(item), the
+item's sampling probability, from each logit, which restores the softmax over the true distribution in expectation.
+On this catalogue, where the hits sit in the popular head (§2), training without it costs 0.036 recall@10, more
+than any architecture knob. The item tower reads the item id, its category and its parent category, which is what
+makes the cold-start path of M3 possible: an item outside the vocabulary still gets a vector from its category.
+
+### 3.9 What the models learned about repeats
+
+Nothing in either model says "recommend what the shopper already saw", yet SASRec finds the repeat target 76.6% of
+the time and the two-tower 55.4%. Both learned it from the sequences: consecutive refreshes were removed in §1.2,
+but a later re-visit stays, so a quarter of the training targets are items that already occur earlier in the same
+sequence. With tied output embeddings, SASRec can score an item in its own context highly by making the hidden
+state at position i point towards the embedding of an item it attended to, and the attention weights make that easy
+for the last few items; the two-tower gets most of the way with the last item's embedding, which its user tower
+concatenates explicitly, and dilutes older ones in the mean pool. What neither learns is the rule's reliability: a
+lookup is right 94.5% of the time regardless of how long ago the item was seen, while a softmax over dot products
+has to trade that probability mass against the new-target candidates it is also better at. That trade is the
+reason the hybrid wins the single-list comparison, and the reason the reranker of M3 exists: its `seen_count` and
+`last_seen_pos` features restore the lookup, and SASRec's candidates supply what the lookup cannot see. The ceiling
+that the two rows of §3.6 allow, 0.255 × 0.945 + 0.745 × 0.143 ≈ 0.35 recall@10, is the number to compare M3 to.
+
+### 3.10 Reproduce
+
+```bash
+python scripts/train_baselines.py --models hybrid
+python scripts/train_neural.py --model sasrec --device mps --negatives 4096        # the chosen configuration
+python scripts/train_neural.py --model two_tower --device mps
+python scripts/evaluate.py --split dev --no-rerank --sampled-demo
+python scripts/plots.py
+```
+The ablations are the same commands with `--max-len 20`, `--negatives 256`, `--event-weights 1,3,5`, `--no-logq`
+and `--tag <name> --out eval/results/ablations`; `scripts/choose_config.py --model sasrec|two_tower` makes the choice.
 
 ## 4. Retrieval and reranking (M3)
 FAISS exact vs HNSW (recall, latency), candidate-union ceiling, reranker features and importance, the

@@ -1,0 +1,110 @@
+{
+  "model": "sasrec",
+  "config": {
+    "dim": 64,
+    "layers": 2,
+    "heads": 2,
+    "dropout": 0.2,
+    "max_len": 50,
+    "negatives": 4096,
+    "event_weights": null,
+    "batch_size": 128,
+    "epochs": 20,
+    "lr": 0.001,
+    "weight_decay": 0.0
+  },
+  "train_log": {
+    "epochs": [
+      {
+        "epoch": 1,
+        "loss": 5.96729,
+        "metric": 0.23385,
+        "seconds": 58.0
+      },
+      {
+        "epoch": 2,
+        "loss": 3.5323,
+        "metric": 0.2798,
+        "seconds": 54.6
+      },
+      {
+        "epoch": 3,
+        "loss": 2.76428,
+        "metric": 0.2891,
+        "seconds": 56.2
+      },
+      {
+        "epoch": 4,
+        "loss": 2.43468,
+        "metric": 0.29415,
+        "seconds": 59.3
+      },
+      {
+        "epoch": 5,
+        "loss": 2.25195,
+        "metric": 0.299,
+        "seconds": 58.4
+      },
+      {
+        "epoch": 6,
+        "loss": 2.13136,
+        "metric": 0.29525,
+        "seconds": 58.1
+      },
+      {
+        "epoch": 7,
+        "loss": 2.04721,
+        "metric": 0.3019,
+        "seconds": 57.6
+      },
+      {
+        "epoch": 8,
+        "loss": 1.97453,
+        "metric": 0.2988,
+        "seconds": 57.6
+      },
+      {
+        "epoch": 9,
+        "loss": 1.9278,
+        "metric": 0.30095,
+        "seconds": 57.3
+      },
+      {
+        "epoch": 10,
+        "loss": 1.87807,
+        "metric": 0.30205,
+        "seconds": 57.4
+      },
+      {
+        "epoch": 11,
+        "loss": 1.84464,
+        "metric": 0.3056,
+        "seconds": 57.9
+      },
+      {
+        "epoch": 12,
+        "loss": 1.81134,
+        "metric": 0.3036,
+        "seconds": 58.0
+      },
+      {
+        "epoch": 13,
+        "loss": 1.78191,
+        "metric": 0.30125,
+        "seconds": 59.0
+      },
+      {
+        "epoch": 14,
+        "loss": 1.75465,
+        "metric": 0.30285,
+        "seconds": 58.9
+      }
+    ],
+    "best_epoch": 11,
+    "best_metric": 0.3056,
+    "seconds": 808.4
+  },
+  "seconds": 809.9,
+  "file": "sasrec-neg4096.pt",
+  "dev_cases_for_epoch_choice": 20000
+}

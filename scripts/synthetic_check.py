@@ -21,7 +21,7 @@ sys.path.insert(0, str(ROOT))
 
 # sets OMP_NUM_THREADS and checks the macOS OpenMP fix before torch / faiss / lightgbm load
 import recsys  # noqa: E402,F401
-from recsys.baselines import ItemKNN, Markov, Popularity, Repeat
+from recsys.baselines import Hybrid, ItemKNN, Markov, Popularity, Repeat
 from recsys.config import RESULTS, SASREC, TWO_TOWER, RerankRules, WindowRules
 from recsys.data import Dataset, cache_raw, find_raw
 from recsys.pipeline import evaluate_models, results_table, source_topk
@@ -42,7 +42,8 @@ def run(users: int, fast: bool, out: Path, seed: int = 7, log=print) -> dict:
 
         ds = Dataset.build(pd.read_parquet(Path(tmp) / "cache" / "events.parquet"), pd.read_parquet(Path(tmp) / "cache" / "categories.parquet"),
                            WindowRules(days=7, min_item_events=3, max_len=20))
-    models = {"popularity": Popularity().fit(ds), "repeat": Repeat().fit(ds), "markov": Markov().fit(ds), "item_knn": ItemKNN(neighbors=50).fit(ds)}
+    models = {"popularity": Popularity().fit(ds), "repeat": Repeat().fit(ds), "hybrid": Hybrid().fit(ds), "markov": Markov().fit(ds),
+              "item_knn": ItemKNN(neighbors=50).fit(ds)}
     dev_sub = ds.cases("dev", max_cases=2000, seed=1)
     sas_cfg = replace(SASREC, dim=32, layers=1, heads=2, max_len=20, negatives=128, batch_size=64, lr=3e-3, epochs=3 if fast else 15)
     tt_cfg = replace(TWO_TOWER, dim=32, hidden=64, max_len=20, batch_size=256, epochs=3 if fast else 8)

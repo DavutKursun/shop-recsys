@@ -13,7 +13,7 @@ from .data import Cases, Dataset
 from .metrics import coverage, paired_user_bootstrap, per_case, popularity_quantile, ranks_in_topk, user_bootstrap
 from .rerank import Reranker
 
-MODEL_FILES = {"popularity": "popularity.joblib", "repeat": "repeat.joblib", "markov": "markov.joblib", "item_knn": "item_knn.joblib",
+MODEL_FILES = {"popularity": "popularity.joblib", "repeat": "repeat.joblib", "hybrid": "hybrid.joblib", "markov": "markov.joblib", "item_knn": "item_knn.joblib",
                "sasrec": "sasrec.pt", "two_tower": "two_tower.pt"}
 
 
@@ -42,7 +42,7 @@ def source_topk(models: dict[str, Recommender], history: np.ndarray, k: int) -> 
 
 def evaluate_models(cases: Cases, models: dict[str, Recommender], reranker: Reranker | None = None, n_items: int = 0, ks=TOP_K,
                     per_source: int = RERANK.candidates_per_source, chunk: int = 20_000, resamples: int = BOOTSTRAP_RESAMPLES,
-                    baseline_names=("popularity", "repeat", "markov", "item_knn"), log_fn=print) -> dict:
+                    baseline_names=("popularity", "repeat", "hybrid", "markov", "item_knn"), log_fn=print) -> dict:
     """Every model (and the reranked pipeline) on the same cases: metrics with user-bootstrap CIs, coverage,
     popularity bias, breakdowns, paired differences against the best baseline, candidate-union recall."""
     k_max = max(max(ks), per_source if reranker is not None else 0)

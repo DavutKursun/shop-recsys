@@ -5,10 +5,13 @@
   "repeat": {
     "seconds": 0.0
   },
+  "hybrid": {
+    "seconds": 5.3
+  },
   "markov": {
-    "seconds": 5.1
+    "seconds": 5.3
   },
   "item_knn": {
-    "seconds": 8.9
+    "seconds": 9.4
   }
 }

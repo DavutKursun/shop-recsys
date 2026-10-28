@@ -1,0 +1,130 @@
+{
+  "model": "two_tower",
+  "chosen": "default",
+  "rule": "highest dev recall@10 on the epoch-choice subsample (20,000 cases); the default keeps ties within 0.0005",
+  "dev_cases_for_epoch_choice": 20000,
+  "runs": [
+    {
+      "tag": "default",
+      "config_delta": {},
+      "best_epoch": 5,
+      "dev_recall@10": 0.2383,
+      "epochs_run": 8,
+      "seconds_per_epoch": 24.1,
+      "seconds": 194.8,
+      "file": "two_tower.pt",
+      "epoch_log": [
+        {
+          "epoch": 1,
+          "loss": 4.53498,
+          "metric": 0.1769,
+          "seconds": 25.7
+        },
+        {
+          "epoch": 2,
+          "loss": 2.73103,
+          "metric": 0.22405,
+          "seconds": 23.9
+        },
+        {
+          "epoch": 3,
+          "loss": 2.13664,
+          "metric": 0.2374,
+          "seconds": 23.7
+        },
+        {
+          "epoch": 4,
+          "loss": 1.81192,
+          "metric": 0.23765,
+          "seconds": 23.8
+        },
+        {
+          "epoch": 5,
+          "loss": 1.61436,
+          "metric": 0.2383,
+          "seconds": 23.6
+        },
+        {
+          "epoch": 6,
+          "loss": 1.4807,
+          "metric": 0.2347,
+          "seconds": 23.9
+        },
+        {
+          "epoch": 7,
+          "loss": 1.37552,
+          "metric": 0.2328,
+          "seconds": 24.0
+        },
+        {
+          "epoch": 8,
+          "loss": 1.29124,
+          "metric": 0.2327,
+          "seconds": 24.3
+        }
+      ]
+    },
+    {
+      "tag": "nologq",
+      "config_delta": {
+        "logq_correction": false
+      },
+      "best_epoch": 5,
+      "dev_recall@10": 0.20205,
+      "epochs_run": 8,
+      "seconds_per_epoch": 23.9,
+      "seconds": 192.8,
+      "file": "two_tower-nologq.pt",
+      "epoch_log": [
+        {
+          "epoch": 1,
+          "loss": 4.31692,
+          "metric": 0.15945,
+          "seconds": 24.6
+        },
+        {
+          "epoch": 2,
+          "loss": 2.63896,
+          "metric": 0.19745,
+          "seconds": 23.9
+        },
+        {
+          "epoch": 3,
+          "loss": 2.06373,
+          "metric": 0.2013,
+          "seconds": 23.1
+        },
+        {
+          "epoch": 4,
+          "loss": 1.75666,
+          "metric": 0.2017,
+          "seconds": 24.5
+        },
+        {
+          "epoch": 5,
+          "loss": 1.56888,
+          "metric": 0.20205,
+          "seconds": 24.4
+        },
+        {
+          "epoch": 6,
+          "loss": 1.43849,
+          "metric": 0.2003,
+          "seconds": 23.7
+        },
+        {
+          "epoch": 7,
+          "loss": 1.33494,
+          "metric": 0.1987,
+          "seconds": 23.5
+        },
+        {
+          "epoch": 8,
+          "loss": 1.25245,
+          "metric": 0.1971,
+          "seconds": 23.3
+        }
+      ]
+    }
+  ]
+}

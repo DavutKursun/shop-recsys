@@ -46,6 +46,7 @@ class SASRecConfig:
     dropout: float = 0.2
     max_len: int = 50
     negatives: int = 1024  # uniform sampled-softmax negatives shared by the batch; 0 = full softmax
+    event_weights: tuple[float, float, float] | None = None  # loss weight of a (view, addtocart, transaction) target; None = all 1
     batch_size: int = 128
     epochs: int = 20
     lr: float = 1e-3
@@ -82,5 +83,5 @@ RERANK = RerankRules()
 TOP_K = (10, 20)
 PRIMARY_K = 10
 BOOTSTRAP_RESAMPLES = 500
-SOURCES = ("popularity", "repeat", "markov", "item_knn", "two_tower", "sasrec")  # candidate sources, in this order
+SOURCES = ("popularity", "repeat", "hybrid", "markov", "item_knn", "two_tower", "sasrec")  # candidate sources, in this order
 HISTORY_BUCKETS = ((1, 1), (2, 4), (5, 19), (20, 10_000))

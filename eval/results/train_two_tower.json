@@ -1,0 +1,74 @@
+{
+  "model": "two_tower",
+  "config": {
+    "dim": 64,
+    "hidden": 128,
+    "dropout": 0.1,
+    "max_len": 50,
+    "temperature": 0.05,
+    "batch_size": 1024,
+    "epochs": 10,
+    "lr": 0.001,
+    "weight_decay": 0.0,
+    "logq_correction": true,
+    "max_examples": 2000000
+  },
+  "train_log": {
+    "epochs": [
+      {
+        "epoch": 1,
+        "loss": 4.53498,
+        "metric": 0.1769,
+        "seconds": 25.7
+      },
+      {
+        "epoch": 2,
+        "loss": 2.73103,
+        "metric": 0.22405,
+        "seconds": 23.9
+      },
+      {
+        "epoch": 3,
+        "loss": 2.13664,
+        "metric": 0.2374,
+        "seconds": 23.7
+      },
+      {
+        "epoch": 4,
+        "loss": 1.81192,
+        "metric": 0.23765,
+        "seconds": 23.8
+      },
+      {
+        "epoch": 5,
+        "loss": 1.61436,
+        "metric": 0.2383,
+        "seconds": 23.6
+      },
+      {
+        "epoch": 6,
+        "loss": 1.4807,
+        "metric": 0.2347,
+        "seconds": 23.9
+      },
+      {
+        "epoch": 7,
+        "loss": 1.37552,
+        "metric": 0.2328,
+        "seconds": 24.0
+      },
+      {
+        "epoch": 8,
+        "loss": 1.29124,
+        "metric": 0.2327,
+        "seconds": 24.3
+      }
+    ],
+    "best_epoch": 5,
+    "best_metric": 0.2383,
+    "seconds": 193.0
+  },
+  "seconds": 194.8,
+  "file": "two_tower.pt",
+  "dev_cases_for_epoch_choice": 20000
+}

@@ -63,7 +63,7 @@ def test_train_and_evaluate_chain(ws):
     assert evaluate.main(["--split", "test", *common]) == 3  # refused without --final
     assert evaluate.main(["--split", "dev", "--resamples", "30", "--max-cases", "1500", "--sampled-demo", *common]) == 0
     res = json.loads((ws["out"] / "dev-summary.json").read_text())
-    assert set(res["models"]) == {"popularity", "repeat", "markov", "item_knn", "two_tower", "sasrec", "reranked"}
+    assert set(res["models"]) == {"popularity", "repeat", "hybrid", "markov", "item_knn", "two_tower", "sasrec", "reranked"}
     assert "sampled_negatives_demo" in res and res["candidate_union_recall"] > 0
     assert (ws["out"] / "dev-summary.md").exists()
 

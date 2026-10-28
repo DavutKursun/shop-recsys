@@ -170,4 +170,27 @@ def _topk_rows(C: sp.csr_matrix, k: int) -> sp.csr_matrix:
     return sp.csr_matrix((np.concatenate(data).astype(np.float32), np.concatenate(indices), np.array(indptr)), shape=C.shape)
 
 
-BASELINES = {c.name: c for c in (Popularity, Repeat, Markov, ItemKNN)}
+class Hybrid(Recommender):
+    """The honest bar: the shopper's own items first (repeat, most recent first), then the Markov continuation of the
+    last items, then popularity. Repeat and the sequential baselines are complementary on this data (DESIGN.md §2);
+    every learned model has to beat their union, not popularity."""
+
+    name = "hybrid"
+
+    def __init__(self, decay: float = 0.8, second_weight: float = 0.3) -> None:
+        super().__init__()
+        self.repeat, self.markov = Repeat(decay), Markov(second_weight)
+
+    def _fit(self, ds: Dataset, **kw) -> None:
+        self.repeat.fit(ds)
+        self.markov.fit(ds)
+
+    def score_batch(self, history: np.ndarray) -> np.ndarray:
+        rep = self.repeat.score_batch(history)  # seen items: recency weight in [decay^(L−1), 1]; unseen: the tiny popularity prior
+        floor = max(self.repeat.decay ** (history.shape[1] - 1), 2e-6)  # the smallest weight a seen item can carry (above the prior)
+        mk = self.markov.score_batch(history)  # transitions ≥ 0 with the prior as a tie-breaker
+        mk = 0.5 * floor * mk / (mk.max(axis=1, keepdims=True) + 1e-12)  # scaled strictly below the repeat band
+        return np.where(rep >= floor, rep, mk).astype(np.float32)
+
+
+BASELINES = {c.name: c for c in (Popularity, Repeat, Hybrid, Markov, ItemKNN)}

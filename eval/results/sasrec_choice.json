@@ -1,0 +1,572 @@
+{
+  "model": "sasrec",
+  "chosen": "neg4096",
+  "rule": "highest dev recall@10 on the epoch-choice subsample (20,000 cases); the default keeps ties within 0.0005",
+  "dev_cases_for_epoch_choice": 20000,
+  "runs": [
+    {
+      "tag": "default",
+      "config_delta": {},
+      "best_epoch": 12,
+      "dev_recall@10": 0.29815,
+      "epochs_run": 15,
+      "seconds_per_epoch": 58.4,
+      "seconds": 879.3,
+      "file": "sasrec.pt",
+      "epoch_log": [
+        {
+          "epoch": 1,
+          "loss": 4.71909,
+          "metric": 0.22725,
+          "seconds": 57.7
+        },
+        {
+          "epoch": 2,
+          "loss": 2.48271,
+          "metric": 0.272,
+          "seconds": 55.6
+        },
+        {
+          "epoch": 3,
+          "loss": 1.80066,
+          "metric": 0.28325,
+          "seconds": 55.9
+        },
+        {
+          "epoch": 4,
+          "loss": 1.50342,
+          "metric": 0.2881,
+          "seconds": 62.4
+        },
+        {
+          "epoch": 5,
+          "loss": 1.34463,
+          "metric": 0.28995,
+          "seconds": 56.0
+        },
+        {
+          "epoch": 6,
+          "loss": 1.24268,
+          "metric": 0.2908,
+          "seconds": 55.1
+        },
+        {
+          "epoch": 7,
+          "loss": 1.16655,
+          "metric": 0.29125,
+          "seconds": 61.1
+        },
+        {
+          "epoch": 8,
+          "loss": 1.11184,
+          "metric": 0.29225,
+          "seconds": 57.0
+        },
+        {
+          "epoch": 9,
+          "loss": 1.06463,
+          "metric": 0.29535,
+          "seconds": 56.6
+        },
+        {
+          "epoch": 10,
+          "loss": 1.03408,
+          "metric": 0.297,
+          "seconds": 60.6
+        },
+        {
+          "epoch": 11,
+          "loss": 1.00135,
+          "metric": 0.2945,
+          "seconds": 56.2
+        },
+        {
+          "epoch": 12,
+          "loss": 0.97697,
+          "metric": 0.29815,
+          "seconds": 56.3
+        },
+        {
+          "epoch": 13,
+          "loss": 0.95397,
+          "metric": 0.29765,
+          "seconds": 58.0
+        },
+        {
+          "epoch": 14,
+          "loss": 0.93836,
+          "metric": 0.29615,
+          "seconds": 68.2
+        },
+        {
+          "epoch": 15,
+          "loss": 0.92424,
+          "metric": 0.29765,
+          "seconds": 59.8
+        }
+      ]
+    },
+    {
+      "tag": "eventw",
+      "config_delta": {
+        "event_weights": [
+          1.0,
+          3.0,
+          5.0
+        ]
+      },
+      "best_epoch": 13,
+      "dev_recall@10": 0.2964,
+      "epochs_run": 16,
+      "seconds_per_epoch": 54.4,
+      "seconds": 872.5,
+      "file": "sasrec-eventw.pt",
+      "epoch_log": [
+        {
+          "epoch": 1,
+          "loss": 4.75143,
+          "metric": 0.22455,
+          "seconds": 57.3
+        },
+        {
+          "epoch": 2,
+          "loss": 2.49767,
+          "metric": 0.2709,
+          "seconds": 55.7
+        },
+        {
+          "epoch": 3,
+          "loss": 1.79482,
+          "metric": 0.28185,
+          "seconds": 57.4
+        },
+        {
+          "epoch": 4,
+          "loss": 1.49333,
+          "metric": 0.2882,
+          "seconds": 57.6
+        },
+        {
+          "epoch": 5,
+          "loss": 1.3351,
+          "metric": 0.2888,
+          "seconds": 56.3
+        },
+        {
+          "epoch": 6,
+          "loss": 1.23225,
+          "metric": 0.2892,
+          "seconds": 57.2
+        },
+        {
+          "epoch": 7,
+          "loss": 1.15603,
+          "metric": 0.29305,
+          "seconds": 56.0
+        },
+        {
+          "epoch": 8,
+          "loss": 1.09762,
+          "metric": 0.2927,
+          "seconds": 53.1
+        },
+        {
+          "epoch": 9,
+          "loss": 1.05141,
+          "metric": 0.2928,
+          "seconds": 52.7
+        },
+        {
+          "epoch": 10,
+          "loss": 1.01825,
+          "metric": 0.29415,
+          "seconds": 52.3
+        },
+        {
+          "epoch": 11,
+          "loss": 0.98849,
+          "metric": 0.2935,
+          "seconds": 52.1
+        },
+        {
+          "epoch": 12,
+          "loss": 0.9643,
+          "metric": 0.295,
+          "seconds": 52.7
+        },
+        {
+          "epoch": 13,
+          "loss": 0.93712,
+          "metric": 0.2964,
+          "seconds": 52.8
+        },
+        {
+          "epoch": 14,
+          "loss": 0.92194,
+          "metric": 0.29425,
+          "seconds": 52.5
+        },
+        {
+          "epoch": 15,
+          "loss": 0.90688,
+          "metric": 0.2958,
+          "seconds": 52.2
+        },
+        {
+          "epoch": 16,
+          "loss": 0.8871,
+          "metric": 0.2942,
+          "seconds": 52.6
+        }
+      ]
+    },
+    {
+      "tag": "maxlen20",
+      "config_delta": {
+        "max_len": 20
+      },
+      "best_epoch": 20,
+      "dev_recall@10": 0.29735,
+      "epochs_run": 20,
+      "seconds_per_epoch": 47.4,
+      "seconds": 949.1,
+      "file": "sasrec-maxlen20.pt",
+      "epoch_log": [
+        {
+          "epoch": 1,
+          "loss": 4.73561,
+          "metric": 0.2252,
+          "seconds": 42.9
+        },
+        {
+          "epoch": 2,
+          "loss": 2.4759,
+          "metric": 0.27205,
+          "seconds": 40.7
+        },
+        {
+          "epoch": 3,
+          "loss": 1.7755,
+          "metric": 0.28275,
+          "seconds": 42.2
+        },
+        {
+          "epoch": 4,
+          "loss": 1.47353,
+          "metric": 0.2863,
+          "seconds": 41.5
+        },
+        {
+          "epoch": 5,
+          "loss": 1.30819,
+          "metric": 0.2874,
+          "seconds": 41.8
+        },
+        {
+          "epoch": 6,
+          "loss": 1.2027,
+          "metric": 0.2904,
+          "seconds": 40.8
+        },
+        {
+          "epoch": 7,
+          "loss": 1.13012,
+          "metric": 0.2886,
+          "seconds": 46.1
+        },
+        {
+          "epoch": 8,
+          "loss": 1.07581,
+          "metric": 0.28985,
+          "seconds": 44.5
+        },
+        {
+          "epoch": 9,
+          "loss": 1.03454,
+          "metric": 0.29195,
+          "seconds": 39.8
+        },
+        {
+          "epoch": 10,
+          "loss": 1.00217,
+          "metric": 0.2921,
+          "seconds": 42.8
+        },
+        {
+          "epoch": 11,
+          "loss": 0.97036,
+          "metric": 0.29185,
+          "seconds": 40.7
+        },
+        {
+          "epoch": 12,
+          "loss": 0.94777,
+          "metric": 0.292,
+          "seconds": 41.4
+        },
+        {
+          "epoch": 13,
+          "loss": 0.92462,
+          "metric": 0.29255,
+          "seconds": 43.2
+        },
+        {
+          "epoch": 14,
+          "loss": 0.90726,
+          "metric": 0.2907,
+          "seconds": 58.1
+        },
+        {
+          "epoch": 15,
+          "loss": 0.89211,
+          "metric": 0.29295,
+          "seconds": 67.2
+        },
+        {
+          "epoch": 16,
+          "loss": 0.87471,
+          "metric": 0.29105,
+          "seconds": 62.4
+        },
+        {
+          "epoch": 17,
+          "loss": 0.86175,
+          "metric": 0.2931,
+          "seconds": 70.1
+        },
+        {
+          "epoch": 18,
+          "loss": 0.85246,
+          "metric": 0.29195,
+          "seconds": 63.7
+        },
+        {
+          "epoch": 19,
+          "loss": 0.84171,
+          "metric": 0.2952,
+          "seconds": 38.8
+        },
+        {
+          "epoch": 20,
+          "loss": 0.82465,
+          "metric": 0.29735,
+          "seconds": 38.5
+        }
+      ]
+    },
+    {
+      "tag": "neg256",
+      "config_delta": {
+        "negatives": 256
+      },
+      "best_epoch": 14,
+      "dev_recall@10": 0.28095,
+      "epochs_run": 17,
+      "seconds_per_epoch": 51.7,
+      "seconds": 880.8,
+      "file": "sasrec-neg256.pt",
+      "epoch_log": [
+        {
+          "epoch": 1,
+          "loss": 3.60586,
+          "metric": 0.20675,
+          "seconds": 53.5
+        },
+        {
+          "epoch": 2,
+          "loss": 1.68395,
+          "metric": 0.2543,
+          "seconds": 50.9
+        },
+        {
+          "epoch": 3,
+          "loss": 1.12926,
+          "metric": 0.2613,
+          "seconds": 50.9
+        },
+        {
+          "epoch": 4,
+          "loss": 0.88998,
+          "metric": 0.27055,
+          "seconds": 50.9
+        },
+        {
+          "epoch": 5,
+          "loss": 0.75162,
+          "metric": 0.2716,
+          "seconds": 51.1
+        },
+        {
+          "epoch": 6,
+          "loss": 0.67485,
+          "metric": 0.2736,
+          "seconds": 51.2
+        },
+        {
+          "epoch": 7,
+          "loss": 0.62168,
+          "metric": 0.27495,
+          "seconds": 51.2
+        },
+        {
+          "epoch": 8,
+          "loss": 0.58477,
+          "metric": 0.2729,
+          "seconds": 51.3
+        },
+        {
+          "epoch": 9,
+          "loss": 0.55333,
+          "metric": 0.2738,
+          "seconds": 51.6
+        },
+        {
+          "epoch": 10,
+          "loss": 0.52763,
+          "metric": 0.27715,
+          "seconds": 51.0
+        },
+        {
+          "epoch": 11,
+          "loss": 0.5049,
+          "metric": 0.2761,
+          "seconds": 57.0
+        },
+        {
+          "epoch": 12,
+          "loss": 0.49218,
+          "metric": 0.2791,
+          "seconds": 52.5
+        },
+        {
+          "epoch": 13,
+          "loss": 0.47694,
+          "metric": 0.27925,
+          "seconds": 51.3
+        },
+        {
+          "epoch": 14,
+          "loss": 0.4664,
+          "metric": 0.28095,
+          "seconds": 51.0
+        },
+        {
+          "epoch": 15,
+          "loss": 0.45221,
+          "metric": 0.28045,
+          "seconds": 50.9
+        },
+        {
+          "epoch": 16,
+          "loss": 0.44163,
+          "metric": 0.27955,
+          "seconds": 51.2
+        },
+        {
+          "epoch": 17,
+          "loss": 0.43817,
+          "metric": 0.28,
+          "seconds": 51.2
+        }
+      ]
+    },
+    {
+      "tag": "neg4096",
+      "config_delta": {
+        "negatives": 4096
+      },
+      "best_epoch": 11,
+      "dev_recall@10": 0.3056,
+      "epochs_run": 14,
+      "seconds_per_epoch": 57.7,
+      "seconds": 809.9,
+      "file": "sasrec-neg4096.pt",
+      "epoch_log": [
+        {
+          "epoch": 1,
+          "loss": 5.96729,
+          "metric": 0.23385,
+          "seconds": 58.0
+        },
+        {
+          "epoch": 2,
+          "loss": 3.5323,
+          "metric": 0.2798,
+          "seconds": 54.6
+        },
+        {
+          "epoch": 3,
+          "loss": 2.76428,
+          "metric": 0.2891,
+          "seconds": 56.2
+        },
+        {
+          "epoch": 4,
+          "loss": 2.43468,
+          "metric": 0.29415,
+          "seconds": 59.3
+        },
+        {
+          "epoch": 5,
+          "loss": 2.25195,
+          "metric": 0.299,
+          "seconds": 58.4
+        },
+        {
+          "epoch": 6,
+          "loss": 2.13136,
+          "metric": 0.29525,
+          "seconds": 58.1
+        },
+        {
+          "epoch": 7,
+          "loss": 2.04721,
+          "metric": 0.3019,
+          "seconds": 57.6
+        },
+        {
+          "epoch": 8,
+          "loss": 1.97453,
+          "metric": 0.2988,
+          "seconds": 57.6
+        },
+        {
+          "epoch": 9,
+          "loss": 1.9278,
+          "metric": 0.30095,
+          "seconds": 57.3
+        },
+        {
+          "epoch": 10,
+          "loss": 1.87807,
+          "metric": 0.30205,
+          "seconds": 57.4
+        },
+        {
+          "epoch": 11,
+          "loss": 1.84464,
+          "metric": 0.3056,
+          "seconds": 57.9
+        },
+        {
+          "epoch": 12,
+          "loss": 1.81134,
+          "metric": 0.3036,
+          "seconds": 58.0
+        },
+        {
+          "epoch": 13,
+          "loss": 1.78191,
+          "metric": 0.30125,
+          "seconds": 59.0
+        },
+        {
+          "epoch": 14,
+          "loss": 1.75465,
+          "metric": 0.30285,
+          "seconds": 58.9
+        }
+      ]
+    }
+  ]
+}

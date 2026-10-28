@@ -7,9 +7,11 @@ report directly. Never print any token or environment variable value. Section 0 
 
 ## 0. Status (updated 2026-10-28)
 
-**Milestone 1 is done (2026-10-28): dataset built, four baselines evaluated on dev (`eval/results/dev-summary.md`,
-DESIGN.md §1–2). Repeat is the baseline to beat: dev recall@10 0.242 [0.234, 0.249]; Markov 0.140, item-kNN 0.136,
-popularity 0.003. Start at Milestone 2.**
+**Milestone 2 is done (2026-10-28): SASRec (4,096 negatives chosen on dev) and the two-tower model (logQ on) trained on
+MPS; the hybrid baseline (repeat, then Markov) is the bar. Dev recall@10: hybrid 0.325 [0.315, 0.335], SASRec 0.302
+(−0.024 paired, CI excludes 0; wins on new targets 0.143 vs 0.114, loses on repeat targets 0.766 vs 0.945), two-tower
+0.234, repeat 0.242 (`eval/results/dev-summary.md`, DESIGN.md §3). Start at Milestone 3: the reranker has to combine
+the repeat lookup with SASRec's new-target candidates (ceiling ≈ 0.35).**
 
 Implemented in the starter (`recsys/`):
 - `config.py` (paths, window rules, model configs, seeds), `schema.py` (RecommendRequest / RecommendResponse, Pydantic)

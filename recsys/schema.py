@@ -12,7 +12,7 @@ class RecommendRequest(BaseModel):
 
     history: list[int] = Field(min_length=1, max_length=200, description="raw item ids the shopper interacted with, oldest first")
     k: int = Field(default=10, ge=1, le=100)
-    model: Literal["popularity", "repeat", "markov", "item_knn", "two_tower", "sasrec", "reranked"] = "reranked"
+    model: Literal["popularity", "repeat", "hybrid", "markov", "item_knn", "two_tower", "sasrec", "reranked"] = "reranked"
 
 
 class Recommendation(BaseModel):

@@ -38,6 +38,7 @@ def main(argv=None) -> int:
     ap.add_argument("--max-len", type=int, default=None)
     ap.add_argument("--temperature", type=float, default=None)
     ap.add_argument("--no-logq", action="store_true", help="two-tower: drop the logQ correction (ablation)")
+    ap.add_argument("--event-weights", default=None, help="SASRec: loss weights of view,addtocart,transaction targets, e.g. 1,3,5 (default: all 1)")
     ap.add_argument("--device", default=None)
     ap.add_argument("--dev-cases", type=int, default=20_000, help="dev cases used to pick the epoch (0 = run all epochs)")
     ap.add_argument("--patience", type=int, default=3)
@@ -54,6 +55,8 @@ def main(argv=None) -> int:
                                   lr=a.lr, max_len=a.max_len, temperature=a.temperature).items() if v is not None and hasattr(base, k)}
     if a.no_logq:
         over["logq_correction"] = False
+    if a.event_weights and hasattr(base, "event_weights"):
+        over["event_weights"] = tuple(float(x) for x in a.event_weights.split(","))
     if a.fast:
         fast = dict(epochs=3, dim=32, layers=1, heads=2) if a.model == "sasrec" else dict(epochs=3, dim=32, hidden=64)
         over = {**fast, **over}

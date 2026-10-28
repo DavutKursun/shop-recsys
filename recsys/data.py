@@ -231,15 +231,19 @@ class Dataset:
             self._user_bounds = (starts, np.append(starts[1:], len(u)))
         return self._user_bounds
 
-    def train_sequences(self, min_events: int | None = None) -> list[np.ndarray]:
-        """Per-user item-index sequences from the training window (UNK kept as a token; models never predict it)."""
+    def train_sequences(self, min_events: int | None = None, with_etype: bool = False):
+        """Per-user item-index sequences from the training window (UNK kept as a token; models never predict it).
+        With `with_etype`, also the parallel event-type sequences (0 view, 1 add-to-cart, 2 transaction)."""
         min_events = min_events or self.rules.min_train_events
-        tr = self.events[self.events["window"] == 0]
-        out = []
-        for _, idx in tr.groupby("uidx", sort=False)["iidx"]:
-            if len(idx) >= min_events:
-                out.append(idx.to_numpy(dtype=np.int64))
-        return out
+        tr = self.events[self.events["window"] == 0]  # (user, ts)-sorted, so every user's training events are one contiguous block
+        u, iidx, et = tr["uidx"].to_numpy(), tr["iidx"].to_numpy(dtype=np.int64), tr["etype"].to_numpy(dtype=np.int64)
+        starts = np.flatnonzero(np.concatenate([[True], u[1:] != u[:-1]])) if len(u) else np.array([], dtype=np.int64)
+        ends = np.append(starts[1:], len(u))
+        keep = (ends - starts) >= min_events
+        items = [iidx[s:e] for s, e in zip(starts[keep], ends[keep])]
+        if not with_etype:
+            return items
+        return items, [et[s:e] for s, e in zip(starts[keep], ends[keep])]
 
     def train_sessions(self) -> list[np.ndarray]:
         tr = self.events[self.events["window"] == 0]

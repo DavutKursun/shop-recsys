@@ -103,9 +103,14 @@ class SASRec(Recommender):
         seed_everything(self.seed)
         device = pick_device(self.device_name)
         cfg = self.cfg
-        seqs = [s for s in ds.train_sequences() if len(s) >= 2]
+        seqs, etypes = ds.train_sequences(with_etype=True)
+        keep = [i for i, s in enumerate(seqs) if len(s) >= 2]
+        seqs, etypes = [seqs[i] for i in keep], [etypes[i] for i in keep]
         inputs = left_pad([s[:-1] for s in seqs], cfg.max_len)
         targets = left_pad([s[1:] for s in seqs], cfg.max_len)
+        weights = None  # optional per-target loss weight by event type (add-to-cart / transaction targets count more)
+        if cfg.event_weights is not None:
+            weights = np.asarray(cfg.event_weights, dtype=np.float32)[left_pad([e[1:] for e in etypes], cfg.max_len)]
         self.net = SASRecNet(ds.n_items, cfg).to(device)
         opt = torch.optim.Adam(self.net.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
         gen = torch.Generator().manual_seed(self.seed)
@@ -119,7 +124,8 @@ class SASRec(Recommender):
                 idx = order[start : start + cfg.batch_size]
                 seq = torch.as_tensor(inputs[idx], device=device)
                 tgt = torch.as_tensor(targets[idx], device=device)
-                loss = self._loss(seq, tgt, gen, device)
+                w = torch.as_tensor(weights[idx], device=device) if weights is not None else None
+                loss = self._loss(seq, tgt, gen, device, w)
                 opt.zero_grad()
                 loss.backward()
                 opt.step()
@@ -137,7 +143,7 @@ class SASRec(Recommender):
         self.log = run_epochs(self.net, cfg.epochs, train_epoch, evaluate, patience, log_fn)
         self.net.to("cpu").eval()
 
-    def _loss(self, seq: torch.Tensor, tgt: torch.Tensor, gen: torch.Generator, device: torch.device) -> torch.Tensor:
+    def _loss(self, seq: torch.Tensor, tgt: torch.Tensor, gen: torch.Generator, device: torch.device, weight: torch.Tensor | None = None) -> torch.Tensor:
         h = self.net(seq)  # (b, L, d)
         valid = valid_targets(tgt)
         h, tgt = h[valid], tgt[valid]  # (m, d), (m,)
@@ -150,7 +156,11 @@ class SASRec(Recommender):
             neg_logits = (h @ E.T).scatter(1, tgt[:, None], float("-inf"))
             neg_logits[:, :FIRST_ITEM] = float("-inf")
         logits = torch.cat([pos, neg_logits], dim=1)
-        return F.cross_entropy(logits, torch.zeros(len(logits), dtype=torch.long, device=device))
+        ce = F.cross_entropy(logits, torch.zeros(len(logits), dtype=torch.long, device=device), reduction="none")
+        if weight is None:
+            return ce.mean()
+        w = weight[valid]
+        return (ce * w).sum() / w.sum().clamp(min=1.0)
 
     # inference ----------------------------------------------------------------------------------------------------
     def _device(self) -> torch.device:

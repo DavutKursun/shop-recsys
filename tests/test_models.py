@@ -90,6 +90,27 @@ def test_baselines_behave(ds, dev, baselines):
         assert idx.shape == (4, 10) and (idx >= FIRST_ITEM).all() and (np.diff(sc, axis=1) <= 1e-6).all()
 
 
+def test_hybrid_is_repeat_then_markov(ds, dev, baselines):
+    hy, rep, mk = baselines["hybrid"], baselines["repeat"], baselines["markov"]
+    h = dev.history[:200]
+    n_seen = np.array([len(set(row[row >= FIRST_ITEM])) for row in h])
+    idx, sc = hy.topk(h, 10)
+    rep_idx, _ = rep.topk(h, 10)
+    for i in np.flatnonzero(n_seen >= 2)[:50]:
+        k = min(n_seen[i], 10)
+        assert (idx[i, :k] == rep_idx[i, :k]).all()  # the seen items come first, in repeat's recency order
+        seen = set(h[i][h[i] >= FIRST_ITEM])
+        assert not any(j in seen for j in idx[i, k:])  # and never again below them
+    one = np.flatnonzero(n_seen == 1)[:50]  # single-item history: the item itself, then its Markov successors
+    mk_idx, _ = mk.topk(h[one], 10)
+    assert (idx[one, 0] == h[one, -1]).all()
+    assert np.mean([(idx[i, 1] == mk_idx[j, 0]) or mk_idx[j, 0] == h[i, -1] for j, i in enumerate(one)]) > 0.9
+    s = hy.score_batch(h[:4])
+    assert s.shape == (4, ds.n_items) and np.isfinite(s[:, FIRST_ITEM:]).all() and (np.diff(sc, axis=1) <= 1e-9).all()
+    r = {n: recall10(m, dev) for n, m in baselines.items()}
+    assert r["hybrid"] > r["repeat"] and r["hybrid"] > 3 * r["popularity"], r
+
+
 def test_sequential_baselines_beat_popularity_on_the_synthetic_shop(dev, baselines):
     r = {n: recall10(m, dev) for n, m in baselines.items()}
     assert r["markov"] > 1.5 * r["popularity"] and r["item_knn"] > 1.5 * r["popularity"], r
@@ -168,7 +189,7 @@ def test_candidate_frame_features(ds, dev, baselines):
     X, case, item = candidate_frame(dev.history[:50], tk, stats, per_source=10)
     assert len(X) == len(case) == len(item) and (np.diff(case) >= 0).all() and len(np.unique(case * ds.n_items + item)) == len(X)
     assert set(X.columns) >= {"popularity_rank", "markov_score", "n_sources", "seen_count", "last_seen_pos", "cat_share", "same_cat_as_last", "hist_len", "log_count"}
-    assert X["n_sources"].between(1, 4).all() and X["seen_count"].max() >= 1  # repeat proposes seen items
+    assert X["n_sources"].between(1, len(baselines)).all() and X["seen_count"].max() >= 1  # repeat proposes seen items
     rep_rows = X["repeat_rank"] == 1
     assert (X.loc[rep_rows, "seen_count"] >= 1).all() and (X.loc[rep_rows, "last_seen_pos"] == 0).all()
 

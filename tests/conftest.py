@@ -16,7 +16,7 @@ if sys.platform == "darwin":  # two OpenMP runtimes (torch / faiss-cpu / lightgb
     if status()["needs_fix"]:
         pytest.exit(f"macOS: more than one OpenMP runtime would load into pytest; run `{FIX_COMMAND}` first", returncode=2)
 
-from recsys.baselines import ItemKNN, Markov, Popularity, Repeat
+from recsys.baselines import Hybrid, ItemKNN, Markov, Popularity, Repeat
 from recsys.config import SASREC, TWO_TOWER, WindowRules
 from recsys.data import Dataset, cache_raw
 from recsys.synthetic import make_world, write_raw
@@ -52,7 +52,8 @@ def dev(ds):
 
 @pytest.fixture(scope="session")
 def baselines(ds):
-    return {"popularity": Popularity().fit(ds), "repeat": Repeat().fit(ds), "markov": Markov().fit(ds), "item_knn": ItemKNN(neighbors=50).fit(ds)}
+    return {"popularity": Popularity().fit(ds), "repeat": Repeat().fit(ds), "hybrid": Hybrid().fit(ds), "markov": Markov().fit(ds),
+            "item_knn": ItemKNN(neighbors=50).fit(ds)}
 
 
 @pytest.fixture(scope="session")
