@@ -27,6 +27,7 @@ def main(argv=None) -> int:
     ap.add_argument("--sources", default="available", help="comma list, or 'available' = every trained model")
     ap.add_argument("--cases", type=int, default=RERANK.train_cases)
     ap.add_argument("--per-source", type=int, default=RERANK.candidates_per_source)
+    ap.add_argument("--tag", default=None, help="save as models/reranker-<tag>.joblib and train_reranker-<tag>.json (ablations)")
     ap.add_argument("--splits-dir", type=Path, default=SPLITS)
     ap.add_argument("--models-dir", type=Path, default=MODELS)
     ap.add_argument("--out", type=Path, default=RESULTS)
@@ -53,11 +54,12 @@ def main(argv=None) -> int:
 
         tk[n] = (np.vstack(idx_parts), np.vstack(sc_parts))
         print(f"  {n:12s} candidates ready")
-    rr.fit(cases, tk)
-    rr.save(a.models_dir / "reranker.joblib")
+    rr.fit(cases, tk, models=models)
+    name = f"reranker-{a.tag}" if a.tag else "reranker"
+    rr.save(a.models_dir / f"{name}.joblib")
     info = {**rr.train_info, "sources": names, "seconds": round(time.time() - t, 1), "feature_importance": rr.feature_importance().to_dict(orient="records")}
     a.out.mkdir(parents=True, exist_ok=True)
-    (a.out / "train_reranker.json").write_text(json.dumps(info, indent=2), encoding="utf-8")
+    (a.out / f"train_{name}.json").write_text(json.dumps(info, indent=2), encoding="utf-8")
     print(rr.feature_importance().head(12).to_string(index=False))
     return 0
 

@@ -56,8 +56,10 @@ def main(argv=None) -> int:
             reranker = None
     cases = ds.cases(a.split, max_cases=a.max_cases or None, seed=3)
     print(f"{a.split}: {len(cases):,} cases from {len(np.unique(cases.user)):,} users; models {names}; reranker {'yes' if reranker else 'no'}")
-    res = evaluate_models(cases, models, reranker, ds.n_items, per_source=RERANK.candidates_per_source, chunk=a.chunk, resamples=a.resamples)
-    res.update({"split": a.split, "run_date": str(date.today()), "models_evaluated": names + (["reranked"] if reranker else [])})
+    per_source = reranker.rules.candidates_per_source if reranker is not None else RERANK.candidates_per_source  # the served budget
+    res = evaluate_models(cases, models, reranker, ds.n_items, per_source=per_source, chunk=a.chunk, resamples=a.resamples)
+    res.update({"split": a.split, "run_date": str(date.today()), "models_evaluated": names + (["reranked"] if reranker else []),
+                "candidates_per_source": per_source})
     if a.sampled_demo:
         res["sampled_negatives_demo"] = sampled_demo(cases, models)
     tag = f"-{a.tag}" if a.tag else ""
@@ -66,7 +68,7 @@ def main(argv=None) -> int:
           f"Targets reachable (in vocabulary): {res['share_target_reachable']:.1%} · repeat targets: {res['share_repeat']:.1%} · warm users: {res['share_warm']:.1%}", "",
           results_table(res), ""]
     if "candidate_union_recall" in res:
-        md.append(f"Candidate union recall (reranker ceiling, {RERANK.candidates_per_source} per source): {res['candidate_union_recall']:.4f}\n")
+        md.append(f"Candidate union recall (reranker ceiling, {per_source} per source): {res['candidate_union_recall']:.4f}\n")
     md.append("## Paired differences, recall@10 (user bootstrap)\n")
     for k, v in res["paired"].items():
         md.append(f"- {k}: {v['point']:+.4f} [{v['ci_low']:+.4f}, {v['ci_high']:+.4f}]{' *' if v['significant'] else ''}")

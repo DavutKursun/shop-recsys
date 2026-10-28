@@ -1,0 +1,47 @@
+{
+  "model": "two_tower",
+  "n_items": 69784,
+  "dim": 64,
+  "k": 100,
+  "n_queries": 5000,
+  "item_norm_min_max": [
+    1.0,
+    1.0
+  ],
+  "flat": {
+    "batch_ms_per_query": 0.0323,
+    "single_ms_per_query": 0.27
+  },
+  "hnsw": {
+    "32": {
+      "recall_at_k": 0.7854,
+      "batch_ms_per_query": 0.0141,
+      "single_ms_per_query": 0.0984,
+      "build_seconds": 2.95
+    },
+    "64": {
+      "recall_at_k": 0.8848,
+      "batch_ms_per_query": 0.0229,
+      "single_ms_per_query": 0.0781,
+      "build_seconds": 2.98
+    },
+    "128": {
+      "recall_at_k": 0.9471,
+      "batch_ms_per_query": 0.0431,
+      "single_ms_per_query": 0.1333,
+      "build_seconds": 2.89
+    },
+    "256": {
+      "recall_at_k": 0.9776,
+      "batch_ms_per_query": 0.0754,
+      "single_ms_per_query": 0.2494,
+      "build_seconds": 3.04
+    },
+    "512": {
+      "recall_at_k": 0.9914,
+      "batch_ms_per_query": 0.1651,
+      "single_ms_per_query": 0.5668,
+      "build_seconds": 2.94
+    }
+  }
+}

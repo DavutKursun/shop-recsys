@@ -1,0 +1,47 @@
+{
+  "model": "sasrec",
+  "n_items": 69784,
+  "dim": 64,
+  "k": 100,
+  "n_queries": 5000,
+  "item_norm_min_max": [
+    0.6442,
+    1.8861
+  ],
+  "flat": {
+    "batch_ms_per_query": 0.0329,
+    "single_ms_per_query": 0.3154
+  },
+  "hnsw": {
+    "32": {
+      "recall_at_k": 0.6475,
+      "batch_ms_per_query": 0.0123,
+      "single_ms_per_query": 0.0493,
+      "build_seconds": 1.95
+    },
+    "64": {
+      "recall_at_k": 0.7437,
+      "batch_ms_per_query": 0.024,
+      "single_ms_per_query": 0.0703,
+      "build_seconds": 2.14
+    },
+    "128": {
+      "recall_at_k": 0.8187,
+      "batch_ms_per_query": 0.0346,
+      "single_ms_per_query": 0.1239,
+      "build_seconds": 2.13
+    },
+    "256": {
+      "recall_at_k": 0.8775,
+      "batch_ms_per_query": 0.0631,
+      "single_ms_per_query": 0.2051,
+      "build_seconds": 2.09
+    },
+    "512": {
+      "recall_at_k": 0.9158,
+      "batch_ms_per_query": 0.1151,
+      "single_ms_per_query": 0.4503,
+      "build_seconds": 2.04
+    }
+  }
+}

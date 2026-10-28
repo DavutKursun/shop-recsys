@@ -7,11 +7,12 @@ report directly. Never print any token or environment variable value. Section 0 
 
 ## 0. Status (updated 2026-10-28)
 
-**Milestone 2 is done (2026-10-28): SASRec (4,096 negatives chosen on dev) and the two-tower model (logQ on) trained on
-MPS; the hybrid baseline (repeat, then Markov) is the bar. Dev recall@10: hybrid 0.325 [0.315, 0.335], SASRec 0.302
-(−0.024 paired, CI excludes 0; wins on new targets 0.143 vs 0.114, loses on repeat targets 0.766 vs 0.945), two-tower
-0.234, repeat 0.242 (`eval/results/dev-summary.md`, DESIGN.md §3). Start at Milestone 3: the reranker has to combine
-the repeat lookup with SASRec's new-target candidates (ceiling ≈ 0.35).**
+**Milestone 3 is done (2026-10-28): LightGBM LambdaRank reranker over the union of all seven sources (dense scores from
+every source, K = 20 per source chosen on the rerank window's held-out cases). Dev recall@10: reranked 0.359 [0.349, 0.368]
+vs hybrid 0.325 (paired +0.034 [+0.032, +0.036]) and SASRec 0.302 (+0.057); the gain is on new targets (0.160 vs 0.114), repeat
+targets stay at the lookup's 0.94, transactions lose 6 points (0.656 vs 0.714). Served index: exact FAISS (0.3 ms per query;
+HNSW is not faster where it is accurate). New-item cold start via the category: targets reachable 79% → 98%, recall on them
+0.0006. Whole request 10 ms p50 on this Mac. DESIGN.md §4. Start at Milestone 4: the single test run.**
 
 Implemented in the starter (`recsys/`):
 - `config.py` (paths, window rules, model configs, seeds), `schema.py` (RecommendRequest / RecommendResponse, Pydantic)

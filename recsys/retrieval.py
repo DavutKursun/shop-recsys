@@ -2,6 +2,12 @@
 recall of the ANN index against exact search, and the latency of both.
 
 Rows PAD and UNK are never indexed; returned ids are item indices (≥ FIRST_ITEM).
+
+HNSW over maximum inner product is not a metric-space search: with unnormalised item vectors (SASRec's, whose norms
+grow with popularity) the graph misses a large share of the exact top-k, and the usual repair, appending
+sqrt(M² − ‖x‖²) so every vector has the same length (Bachrach et al., RecSys 2014), was tried in M3 and did not
+help (recall@100 0.81 → 0.81 at ef 128). At 70k items exact search is 0.3 ms per query, which is what is served;
+`ann_check` keeps the honest comparison.
 """
 
 from __future__ import annotations
@@ -59,7 +65,9 @@ def ann_check(vectors: np.ndarray, queries: np.ndarray, k: int = 100, ef_search:
     exact_ids, _ = flat.search(queries, k)
     flat_batch_ms = (time.perf_counter() - t) * 1000 / len(queries)
     flat_single_ms = _single_latency(flat, queries[:single_queries], k)
+    norms = np.linalg.norm(vectors[FIRST_ITEM:], axis=1)
     out = {"n_items": int(vectors.shape[0] - FIRST_ITEM), "dim": int(vectors.shape[1]), "k": k, "n_queries": len(queries),
+           "item_norm_min_max": [round(float(norms.min()), 4), round(float(norms.max()), 4)],
            "flat": {"batch_ms_per_query": round(flat_batch_ms, 4), "single_ms_per_query": round(flat_single_ms, 4)}, "hnsw": {}}
     for ef in ef_search:
         t = time.perf_counter()

@@ -142,6 +142,7 @@ class Cases:
     hist_len: np.ndarray  # (n,) true history length before truncation
     warm: np.ndarray  # (n,) bool: the user had at least one event before the window
     repeat: np.ndarray  # (n,) bool: the target item is in the (full) history
+    raw_item: np.ndarray | None = None  # (n,) raw item id of the target (for checks beyond the vocabulary); None if unknown
 
     def __len__(self) -> int:
         return len(self.target)
@@ -151,7 +152,8 @@ class Cases:
         return self.target != UNK
 
     def subset(self, mask: np.ndarray) -> Cases:
-        return Cases(self.history[mask], self.target[mask], self.user[mask], self.etype[mask], self.ts[mask], self.hist_len[mask], self.warm[mask], self.repeat[mask])
+        return Cases(self.history[mask], self.target[mask], self.user[mask], self.etype[mask], self.ts[mask], self.hist_len[mask], self.warm[mask], self.repeat[mask],
+                     None if self.raw_item is None else self.raw_item[mask])
 
     def last_items(self) -> np.ndarray:
         return self.history[:, -1]
@@ -255,6 +257,7 @@ class Dataset:
         code = WINDOW_CODE[window]
         ev = self.events
         iidx, uidx, win, ts, et = ev["iidx"].to_numpy(), ev["uidx"].to_numpy(), ev["window"].to_numpy(), ev["ts"].to_numpy(), ev["etype"].to_numpy()
+        raw = ev["item"].to_numpy()
         starts, ends = self._bounds()
         rows = np.flatnonzero(win == code)
         first_row = starts[uidx[rows]]
@@ -274,7 +277,7 @@ class Dataset:
             hist[i, max_len - k :] = h[-k:]
             warm[i] = win[s] < code
             repeat[i] = iidx[r] != UNK and bool((h == iidx[r]).any())
-        return Cases(hist, iidx[rows], uidx[rows], et[rows], ts[rows], hist_len, warm, repeat)
+        return Cases(hist, iidx[rows], uidx[rows], et[rows], ts[rows], hist_len, warm, repeat, raw[rows])
 
     def window_frame(self, window: str) -> pd.DataFrame:
         return self.events[self.events["window"] == WINDOW_CODE[window]]

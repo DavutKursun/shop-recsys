@@ -186,27 +186,37 @@ def test_faiss_flat_is_exact_and_hnsw_is_close(dev, two_tower, tmp_path):
 def test_candidate_frame_features(ds, dev, baselines):
     stats = ItemStats.from_dataset(ds)
     tk = source_topk(baselines, dev.history[:50], 10)
-    X, case, item = candidate_frame(dev.history[:50], tk, stats, per_source=10)
+    X, case, item = candidate_frame(dev.history[:50], tk, stats, per_source=10, models=baselines)
     assert len(X) == len(case) == len(item) and (np.diff(case) >= 0).all() and len(np.unique(case * ds.n_items + item)) == len(X)
     assert set(X.columns) >= {"popularity_rank", "markov_score", "n_sources", "seen_count", "last_seen_pos", "cat_share", "same_cat_as_last", "hist_len", "log_count"}
     assert X["n_sources"].between(1, len(baselines)).all() and X["seen_count"].max() >= 1  # repeat proposes seen items
     rep_rows = X["repeat_rank"] == 1
     assert (X.loc[rep_rows, "seen_count"] >= 1).all() and (X.loc[rep_rows, "last_seen_pos"] == 0).all()
+    # dense scores: every candidate carries every source's score; the rank is NaN only where the source did not propose it
+    assert X["markov_score"].notna().all() and X["markov_rank"].isna().any() and X["repeat_rank"].isna().any()
+    full = baselines["markov"].score_batch(dev.history[:50])
+    assert np.allclose(X["markov_score"].to_numpy(), full[case, item], atol=1e-6)
+    X2, _, _ = candidate_frame(dev.history[:50], tk, stats, per_source=10)  # without models: scores only where proposed
+    assert X2["markov_score"].isna().any() and np.allclose(X2["markov_rank"].to_numpy(), X["markov_rank"].to_numpy(), equal_nan=True)
 
 
 def test_reranker_fits_and_does_not_collapse(ds, dev, baselines, sasrec, two_tower):
     models = {**baselines, "two_tower": two_tower, "sasrec": sasrec}
     rr_cases = ds.cases("rerank")
     rules = RerankRules(candidates_per_source=20, train_cases=len(rr_cases), negatives_per_case=20, rounds=60)
-    rr = Reranker(ItemStats.from_dataset(ds), rules).fit(rr_cases, source_topk(models, rr_cases.history, 20), log_fn=None)
-    assert rr.train_info["candidate_recall"] > 0.5 and rr.booster is not None
+    rr = Reranker(ItemStats.from_dataset(ds), rules).fit(rr_cases, source_topk(models, rr_cases.history, 20), models=models, log_fn=None)
+    assert rr.train_info["candidate_recall"] > 0.5 and rr.booster is not None and rr.train_info["dense_scores"]
+    assert 0 < rr.train_info["heldout_recall@10"] <= rr.train_info["heldout_union_recall"] <= 1 and rr.train_info["val_cases"] > 0
+    tk3 = source_topk(models, dev.history[:3], 20)
+    dense = rr.rerank(dev.history[:3], tk3, 5, models=models)[0]
+    assert dense.shape == (3, 5) and (dense >= FIRST_ITEM).all()
     res = evaluate_models(dev, models, rr, ds.n_items, per_source=20, resamples=50, log_fn=None)
     best_single = max(models, key=lambda n: res["models"][n]["recall@10"]["point"])
     assert res["models"]["reranked"]["recall@10"]["point"] >= 0.9 * res["models"][best_single]["recall@10"]["point"]
     assert res["candidate_union_recall"] >= res["models"]["reranked"]["recall@20"]["point"]
     assert set(res["breakdowns"]) >= {"warm", "cold", "repeat", "new", "hist_1-1", "target_view"} and "best_baseline" in res
     assert "reranked" in results_table(res)
-    idx, sc, src = rr.rerank(dev.history[:3], source_topk(models, dev.history[:3], 20), 5, with_sources=True)
+    idx, sc, src = rr.rerank(dev.history[:3], source_topk(models, dev.history[:3], 20), 5, models=models, with_sources=True)
     assert idx.shape == (3, 5) and len(src) == 3 and all(len(s) >= 1 for s in src[0])
     imp = rr.feature_importance()
     assert imp["gain"].iloc[0] > 0

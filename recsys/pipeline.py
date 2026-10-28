@@ -60,7 +60,7 @@ def evaluate_models(cases: Cases, models: dict[str, Recommender], reranker: Rera
         if reranker is not None:
             union = np.concatenate([idx[:, :per_source] for idx, _ in tk.values()], axis=1)
             union_hit[sl] = (union == t[:, None]).any(axis=1)
-            idx, _ = reranker.rerank(h, tk, max(ks))
+            idx, _ = reranker.rerank(h, tk, max(ks), models=models)
             ranks["reranked"][sl] = ranks_in_topk(idx, t)
             top10["reranked"][sl] = idx[:, :PRIMARY_K]
         if log_fn:
@@ -99,6 +99,9 @@ def evaluate_models(cases: Cases, models: dict[str, Recommender], reranker: Rera
         best_single = max(single, key=lambda n: out["models"][n][primary]["point"])
         out["best_single"] = best_single
         out["paired"][f"reranked_minus_{best_single}"] = paired_user_bootstrap(per["reranked"][primary], per[best_single][primary], cases.user, resamples)
+        for n in ("sasrec", "two_tower"):  # the learned retrievers, whatever the best single model is
+            if n in models and n != best_single:
+                out["paired"][f"reranked_minus_{n}"] = paired_user_bootstrap(per["reranked"][primary], per[n][primary], cases.user, resamples)
     return out
 
 

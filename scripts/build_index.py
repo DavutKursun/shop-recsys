@@ -26,6 +26,7 @@ def main(argv=None) -> int:
     ap.add_argument("--model", default="sasrec", choices=["sasrec", "two_tower"])
     ap.add_argument("--k", type=int, default=100)
     ap.add_argument("--queries", type=int, default=5000)
+    ap.add_argument("--ef", default="32,64,128", help="HNSW efSearch values to check, comma list")
     ap.add_argument("--splits-dir", type=Path, default=SPLITS)
     ap.add_argument("--models-dir", type=Path, default=MODELS)
     ap.add_argument("--out", type=Path, default=RESULTS)
@@ -34,7 +35,7 @@ def main(argv=None) -> int:
     m = load_model(a.model, a.models_dir)
     cases = ds.cases("dev", max_cases=a.queries, seed=4)
     queries = m.user_vectors(cases.history)
-    report = {"model": a.model, **ann_check(m.item_vectors(), queries, k=a.k)}
+    report = {"model": a.model, **ann_check(m.item_vectors(), queries, k=a.k, ef_search=tuple(int(x) for x in a.ef.split(",")))}
     ItemIndex(m.item_vectors(), "hnsw").save(a.models_dir / f"index_{a.model}_hnsw.faiss")
     a.out.mkdir(parents=True, exist_ok=True)
     (a.out / f"ann_{a.model}.json").write_text(json.dumps(report, indent=2), encoding="utf-8")

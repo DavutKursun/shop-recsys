@@ -1,0 +1,52 @@
+{
+  "model": "reranker",
+  "chosen": "k20",
+  "rule": "highest reranked recall@10 on the 3,941 rerank-window cases held out of training (misses counted); the default keeps ties within 0.0005",
+  "runs": [
+    {
+      "tag": "default",
+      "config_delta": {
+        "candidates_per_source": 50
+      },
+      "heldout_recall@10": 0.3928,
+      "heldout_ndcg@10": 0.2794,
+      "heldout_union_recall": 0.5245,
+      "candidate_recall": 0.5131,
+      "rows": 363313,
+      "val_cases": 3941,
+      "best_iteration": 214,
+      "val_ndcg10": 0.5327,
+      "seconds": 315.9
+    },
+    {
+      "tag": "k100",
+      "config_delta": {
+        "candidates_per_source": 100
+      },
+      "heldout_recall@10": 0.3903,
+      "heldout_ndcg@10": 0.2786,
+      "heldout_union_recall": 0.559,
+      "candidate_recall": 0.5457,
+      "rows": 378074,
+      "val_cases": 3941,
+      "best_iteration": 185,
+      "val_ndcg10": 0.4985,
+      "seconds": 370.1
+    },
+    {
+      "tag": "k20",
+      "config_delta": {
+        "candidates_per_source": 20
+      },
+      "heldout_recall@10": 0.3936,
+      "heldout_ndcg@10": 0.2805,
+      "heldout_union_recall": 0.472,
+      "candidate_recall": 0.4612,
+      "rows": 334031,
+      "val_cases": 3941,
+      "best_iteration": 146,
+      "val_ndcg10": 0.5943,
+      "seconds": 314.4
+    }
+  ]
+}

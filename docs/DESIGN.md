@@ -368,8 +368,237 @@ The ablations are the same commands with `--max-len 20`, `--negatives 256`, `--e
 and `--tag <name> --out eval/results/ablations`; `scripts/choose_config.py --model sasrec|two_tower` makes the choice.
 
 ## 4. Retrieval and reranking (M3)
-FAISS exact vs HNSW (recall, latency), candidate-union ceiling, reranker features and importance, the
-cold-start paths (new users, new items via the item tower), what the reranker fixes and what it cannot.
+
+Stage one retrieves candidates from every source; stage two reranks their union with a LightGBM LambdaRank model.
+This section measures the index that serves the embedding models (§4.1), how the reranker is trained and what it
+learned (§4.2–4.3), what it does on dev against the hybrid bar (§4.4), the two cold-start paths (§4.5) and what
+each piece costs at inference (§4.6). Files: `eval/results/ann_*.json`, `train_reranker.json`, `rerank_choice.json`,
+`dev-summary.md`, `cold_items-dev.json`, `source_cost.json`.
+
+### 4.1 Exact search vs HNSW over the item vectors
+
+`python scripts/build_index.py --model sasrec|two_tower --ef 32,64,128,256,512`: 69,784 item vectors of dimension 64,
+5,000 dev user vectors as queries, k = 100; recall@100 of HNSW (M = 32, efConstruction 200) against the exact
+inner-product search, latency per query batched (5,000 at once) and single (median of 200 one-at-a-time queries).
+CPU, 4 threads. `eval/results/ann_sasrec.json`, `ann_two_tower.json`.
+
+| index | SASRec recall@100 | SASRec batched / single ms | two-tower recall@100 | two-tower batched / single ms |
+|---|---|---|---|---|
+| exact (IndexFlatIP) | 1 | 0.033 / 0.315 | 1 | 0.032 / 0.270 |
+| HNSW ef 32 | 0.648 | 0.012 / 0.049 | 0.785 | 0.014 / 0.098 |
+| HNSW ef 64 | 0.744 | 0.024 / 0.070 | 0.885 | 0.023 / 0.078 |
+| HNSW ef 128 | 0.819 | 0.035 / 0.124 | 0.947 | 0.043 / 0.133 |
+| HNSW ef 256 | 0.878 | 0.063 / 0.205 | **0.978** | 0.075 / 0.249 |
+| HNSW ef 512 | 0.916 | 0.115 / 0.450 | 0.991 | 0.165 / 0.567 |
+
+![ANN recall and latency](img/ann_recall_latency.png)
+
+**The served index is exact search, for both models.** At 70k items × 64 dimensions a brute-force inner product
+costs 0.3 ms per single query and 0.03 ms per query in a batch, which is below anything else in the request
+(§4.6). HNSW is only faster where it is wrong: the two-tower reaches the 0.95 recall target at ef 256, and there
+a single query costs 0.25 ms, the same as exact, while a batch costs 2.3× more; SASRec never reaches the target,
+0.916 at ef 512 and 0.45 ms, slower than exact. SASRec's vectors are the reason for the gap between the two models:
+their norms run from 0.64 to 1.89 (popular items are long), and HNSW's graph search over a maximum inner product
+is not a metric search, so it misses high-norm neighbours that exact search finds. The textbook repair, one extra
+coordinate that gives every vector the same length (Bachrach et al., 2014), was tried and changed nothing (0.809
+vs 0.819 at ef 128), which is consistent with the literature on graph indexes for inner product (Morozov & Babenko,
+2018). HNSW earns its place at a catalogue ten to a hundred times larger; here the honest table says to skip it,
+and the saved `index_*_hnsw.faiss` files exist only so M5 can show both paths.
+
+
+### 4.2 Training the reranker on its own window
+
+`python scripts/train_reranker.py`: 40,000 cases sampled from the rerank window [T0, T1), all seven sources,
+candidates = the union of every source's top-K. Every candidate carries every source's **dense** score (the user ·
+item dot product for SASRec and the two-tower, a gather from the full score vector for the rest), the rank at which
+each source proposed it (NaN when it did not) and the number of proposers, plus item statistics from the training
+window (log count, log recent count, days since first / last seen), user–item signals (times seen, position of the
+last sighting, share of the history in the candidate's category, same category as the last item) and the history
+length. 10% of the cases are held out *by case*; LightGBM early-stops on their ndcg@10 over the full candidate lists
+and the reranked top-10 is then scored on all of them, misses included: that number, not dev, chose the candidate
+budget.
+
+| run | K per source | union recall, all 40k cases (the ceiling) | training rows | best iteration | early-stopping ndcg@10 | held-out union recall | held-out reranked recall@10 | held-out ndcg@10 |
+|---|---|---|---|---|---|---|---|---|
+| 50 per source | 50 | 0.513 | 363,313 | 214 | 0.5327 | 0.524 | 0.3928 | 0.2794 |
+| 20 per source **(chosen)** | 20 | 0.461 | 334,031 | 146 | 0.5943 | 0.472 | 0.3936 | 0.2805 |
+| 100 per source | 100 | 0.546 | 378,074 | 185 | 0.4985 | 0.559 | 0.3903 | 0.2786 |
+
+The three budgets are a statistical tie on the ~4,000 held-out cases (standard error ≈ 0.008): the reranker
+converts a larger union (0.47 → 0.56 ceiling) into exactly the same top-10, because the extra candidates are deep
+tail items it has learned to ignore. The rule fixed in advance (highest held-out recall@10, default keeps ties
+within 0.0005) picked K = 20 by 0.0008; it is also the cheapest at inference, so it is the served model. Training
+takes about a minute per run on CPU.
+
+**Why a separate window.** The retrievers are fitted on events before T0. Had the reranker been trained on those
+same events, its features would have been the retrievers' scores on their *own training data*: Markov's transition
+probabilities would be "right" far more often than they are on new traffic, SASRec's logits would be the
+memorised sequences, and the reranker would learn to trust them exactly where they will not deserve it. The
+rerank window [T0, T1) is the first fortnight the retrievers have never seen, so every feature the reranker sees in
+training has the same relationship to the truth that it will have in production. The price is two weeks of
+events that the retrievers do not learn from; the alternative, a k-fold scheme over the training window, would cost
+k retriever fits per model for a 14-day gain in data.
+
+### 4.3 What the reranker learned
+
+Top 12 of 25 features by split gain (`eval/results/train_reranker.json`, the served K = 20 model):
+
+| # | feature | share of gain |
+|---|---|---|
+| 1 | `hybrid_rank` | 37.8% |
+| 2 | `hybrid_score` | 17.7% |
+| 3 | `cat_share` | 11.6% |
+| 4 | `sasrec_score` | 8.0% |
+| 5 | `repeat_score` | 4.5% |
+| 6 | `n_sources` | 2.5% |
+| 7 | `sasrec_rank` | 2.4% |
+| 8 | `item_knn_score` | 2.1% |
+| 9 | `same_cat_as_last` | 2.0% |
+| 10 | `item_knn_rank` | 1.7% |
+| 11 | `days_since_last` | 1.7% |
+| 12 | `two_tower_score` | 1.2% |
+
+![reranker features](img/reranker_features.png)
+
+The hybrid's rank and score dominate: the reranker starts from the lookup-then-Markov order of §3 and spends
+its remaining capacity on the signals the hybrid lacks, SASRec's score and rank, the category share of the
+history, item-kNN's vote and the item's recency. The embedding scores are dense here, so SASRec's opinion of a
+candidate that only repeat proposed, and repeat's opinion of a SASRec candidate (seen or never seen), are both on
+the table; `n_sources`, how many retrievers agree, is the cheap consensus feature.
+
+### 4.4 Dev: the reranked pipeline against the hybrid bar
+
+`python scripts/evaluate.py --split dev --sampled-demo` with all seven sources and the reranker (K = 20 per source):
+93,937 cases, 38,012 visitors, 500 visitor-bootstrap resamples; 16.3 min on CPU, peak 1.9 GB. Point [95% CI].
+
+| model | recall@10 | recall@20 | ndcg@10 | mrr@10 | coverage@10 | pop. quantile |
+|---|---|---|---|---|---|---|
+| **reranked** | **0.3588 [0.3491, 0.3675]** | 0.4069 [0.3969, 0.4163] | 0.2596 [0.2515, 0.2670] | 0.2285 [0.2210, 0.2354] | 0.714 | 0.191 |
+| hybrid | 0.3254 [0.3149, 0.3347] | 0.3520 [0.3407, 0.3619] | 0.2279 [0.2199, 0.2355] | 0.1965 [0.1890, 0.2035] | 0.602 | 0.141 |
+| sasrec | 0.3018 [0.2912, 0.3115] | 0.3521 [0.3410, 0.3626] | 0.2050 [0.1971, 0.2128] | 0.1748 [0.1676, 0.1816] | 0.740 | 0.222 |
+| repeat | 0.2416 [0.2336, 0.2493] | 0.2481 [0.2404, 0.2556] | 0.1906 [0.1835, 0.1976] | 0.1736 [0.1666, 0.1802] | 0.434 | 0.083 |
+| two_tower | 0.2336 [0.2255, 0.2416] | 0.2816 [0.2720, 0.2907] | 0.1514 [0.1458, 0.1573] | 0.1259 [0.1210, 0.1312] | 0.751 | 0.211 |
+| markov | 0.1396 [0.1355, 0.1435] | 0.1653 [0.1607, 0.1698] | 0.0859 [0.0833, 0.0885] | 0.0693 [0.0669, 0.0714] | 0.488 | 0.097 |
+| item_knn | 0.1364 [0.1320, 0.1408] | 0.1790 [0.1733, 0.1846] | 0.0782 [0.0758, 0.0807] | 0.0603 [0.0583, 0.0622] | 0.609 | 0.315 |
+| popularity | 0.0030 [0.0024, 0.0036] | 0.0072 [0.0063, 0.0082] | 0.0014 [0.0011, 0.0017] | 0.0009 [0.0007, 0.0011] | 0.000 | 0.000 |
+
+Candidate-union recall on dev, the reranker's ceiling: 0.4405 at the served K = 20 (0.489 at K = 50). The
+reranker turns 81% of its ceiling into a top-10 hit.
+
+| paired difference, recall@10 | [95% CI] |
+|---|---|
+| reranked − hybrid | **+0.0335 [+0.0316, +0.0359]** |
+| reranked − sasrec | +0.0570 [+0.0540, +0.0604] |
+| reranked − two_tower | +0.1253 [+0.1215, +0.1292] |
+
+**The plain answer: the reranker beats the hybrid**, by 0.034 recall@10 with a paired interval that excludes zero
+by a wide margin, and it beats every single model on every metric. Nothing was tuned on dev: the candidate budget
+was chosen on the rerank window's held-out cases (§4.2) and this is the first and only dev run of the served model.
+
+Recall@10 by subset (the four unchanged baselines are in §2 and §3.6):
+
+| subset | n | repeat | hybrid | sasrec | two_tower | **reranked** |
+|---|---|---|---|---|---|---|
+| warm visitors | 36,736 | 0.230 | 0.258 | 0.223 | 0.180 | **0.281** |
+| cold visitors | 57,201 | 0.249 | 0.369 | 0.353 | 0.268 | **0.409** |
+| repeat targets | 23,929 | **0.945** | **0.945** | 0.766 | 0.554 | 0.940 |
+| new targets | 70,008 | 0.001 | 0.114 | 0.143 | 0.124 | **0.160** |
+| history 1 | 30,878 | 0.144 | 0.280 | 0.305 | 0.242 | **0.324** |
+| history 2–4 | 28,114 | 0.282 | 0.381 | 0.362 | 0.269 | **0.411** |
+| history 5–19 | 19,158 | 0.351 | 0.396 | 0.315 | 0.243 | **0.415** |
+| history 20+ | 15,787 | 0.229 | 0.230 | 0.172 | 0.143 | **0.267** |
+| target = view | 91,480 | 0.238 | 0.322 | 0.303 | 0.235 | **0.357** |
+| target = add-to-cart | 1,715 | 0.232 | 0.314 | 0.255 | 0.197 | **0.356** |
+| target = transaction | 742 | 0.709 | **0.714** | 0.237 | 0.170 | 0.656 |
+
+![reranked by history](img/reranked_by_history.png)
+
+**Where the gain comes from.** New targets, entirely: 0.745 × (0.160 − 0.114) = +0.035, against a loss of
+0.255 × (0.940 − 0.945) = −0.001 on repeat targets. The reranker keeps the lookup (its `hybrid_rank`,
+`repeat_score`, `seen_count` features reproduce 94% of the repeat recall) and, on the three quarters of cases
+whose target is new, ranks SASRec's candidates with item-kNN's vote, the Markov transition and the category share
+of the history on top of SASRec's own score, which lifts new-target recall above SASRec alone (0.160 vs 0.143). It
+wins every history bucket, including the single-event histories where SASRec was the only model ahead of the
+hybrid, and both cold and warm visitors. The one place it gives something back is purchases: 0.656 against the
+hybrid's 0.714 on 742 transaction targets, because LambdaRank weights every event type the same and the model
+spends a few of the ten slots on new candidates where a purchase is almost always a repeat (§2). An objective or
+a candidate rule that treats a shopper with items in the cart differently is the obvious M6 item.
+
+**What the reranker fixed, and what it cannot.** It fixed the single-list trade-off of §3.9: a lookup and a
+sequence model no longer compete for the same ten slots, and the result lands at 0.359, above the ≈ 0.35
+arithmetic ceiling estimated there, because new-target recall rose beyond SASRec's own. What it cannot fix is a
+target that no source proposes. Of the dev cases, 20.8% have a target outside the vocabulary, which every id-based
+retriever scores at zero and which the category-only item path cannot rescue (§4.5); and among the reachable
+targets the seven retrievers together put the right item in their top-20 lists for only 44% of all
+cases. The reranker's recall is bounded by that union, and the rest of the gap between 0.359 and the ceiling is
+ranking among 69 candidates. Raising the ceiling is retrieval work (better candidates, content signals), not
+reranking work: K = 100 lifted the ceiling from 0.47 to 0.56 on the rerank window and the reranked top-10 did not
+move, because the extra candidates were tail items.
+
+### 4.5 Cold start
+
+**Cold visitors.** A visitor with a single click (33% of cases) is best served by the reranked list (0.324), then
+SASRec alone (0.305); both beat the hybrid (0.280), whose only non-trivial signal on one click is the Markov
+successor list (0.141). A visitor first seen inside the window (61% of cases) gets 0.409 from the reranked list
+against 0.369 from the hybrid. With zero clicks nothing but popularity is available, and popularity is the next
+item 0.3% of the time on this catalogue; the API therefore requires at least one item and the product shows the
+popular list only as a fallback.
+
+**New items.** `python scripts/cold_items.py`: the two-tower item tower is applied to every catalogue item with a
+known category that is outside the vocabulary (UNK id + category + parent, `embed_new_items`), 355,310 items on
+top of the 69,784, with no training and no change to any other model.
+
+| | two-tower, vocabulary only | two-tower + catalogue |
+|---|---|---|
+| dev targets reachable | 79.2% | **97.7%** (+17,376 cases, 18.5%) |
+| recall@10, all dev cases | 0.2336 | 0.2315 |
+| recall@10 on the newly reachable targets | 0 (unreachable) | **0.0006** |
+| recall@10 on vocabulary targets | 0.2949 | 0.2922 |
+
+The honest cold-start number is 0.0006. The category path makes the targets *reachable*, not *findable*: the
+355,310 new items share 996 distinct category/parent vectors, so a category holds on average 357 items with
+exactly the same vector, and a top-10 can carry ten of them. Even when the tower picks the right category the
+chance of showing the right new item is about 10 in 357, and the flood of identical vectors costs the vocabulary
+targets 0.003. On this dataset new items have no other content (the property values are hashed), so the next step
+for new-item cold start is a content signal, not a better tower; the M3 result is the floor against which such a
+signal would be measured.
+
+### 4.6 What each piece costs at inference
+
+`python scripts/bench_sources.py`: 10,000 dev cases, top-50 per source, in chunks of 1,000, CPU with 4 OpenMP
+threads, plus 200 single-shopper requests through the whole path (`eval/results/source_cost.json`).
+
+| source | ms per 1,000 cases (top-50) | single request p50 / p90 (ms) |
+|---|---|---|
+| popularity | 1,024 | 1.10 / 1.23 |
+| repeat | 984 | 1.07 / 1.19 |
+| hybrid | 1,006 | 1.24 / 1.39 |
+| markov | 978 | 1.13 / 1.22 |
+| item_knn | 588 | 0.57 / 1.14 |
+| two_tower | 634 | 1.15 / 1.40 |
+| sasrec | 143 | 1.22 / 1.47 |
+| reranker: features (69 candidates per case) | 484 | 2.58 / 2.97 (features + predict) |
+| reranker: LightGBM predict | 144 | |
+| **whole request** (7 sources + features + predict) | | **10.1 / 11.5** |
+
+Two things to carry into M5. The "cheap" baselines are the slow ones per case, because `score_batch` materialises
+a dense 69,784-wide score row and `topk` sorts it: a request through all seven sources costs about 10 ms here, of
+which 7 ms is seven dense top-k passes that the serving layer can replace with sparse lookups (repeat and Markov
+touch a few dozen items each) or drop (popularity and the hybrid add nothing the reranker does not already get from
+repeat and Markov). And the reranker itself is 2.6 ms per request, so the 50 ms budget on a slower CPU is not
+threatened by the ranking stage.
+
+### 4.7 Reproduce
+
+```bash
+python scripts/build_index.py --model sasrec --ef 32,64,128,256,512 && python scripts/build_index.py --model two_tower --ef 32,64,128,256,512
+python scripts/train_reranker.py                                   # K = 50, writes train_reranker.json
+python scripts/train_reranker.py --per-source 20 --tag k20 --out eval/results/ablations
+python scripts/train_reranker.py --per-source 100 --tag k100 --out eval/results/ablations
+python scripts/choose_config.py --model reranker                   # held-out choice → models/reranker.joblib
+python scripts/evaluate.py --split dev --sampled-demo
+python scripts/cold_items.py && python scripts/bench_sources.py && python scripts/plots.py
+```
 
 ## 5. Test results (M4) — run once on _(date)_
 

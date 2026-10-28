@@ -50,8 +50,29 @@ class ItemStats:
         return cls(log_count, log_recent, d_first, d_last, cat, n)
 
 
-def candidate_frame(history: np.ndarray, source_topk: SourceTopK, stats: ItemStats, per_source: int, sources=SOURCES) -> tuple[pd.DataFrame, np.ndarray, np.ndarray]:
-    """Union of candidates for a chunk of cases → (features, case index per row, item per row). Rows are sorted by case."""
+def dense_scores(model, history: np.ndarray, case: np.ndarray, item: np.ndarray, block: int = 1000) -> np.ndarray:
+    """Every (case, item) pair scored by one model: the user · item dot product for the embedding models, a gather from
+    `score_batch` in blocks of at most `block` rows (one block of scores is block × n_items floats) for the rest."""
+    out = np.empty(len(case), dtype=np.float32)
+    if hasattr(model, "user_vectors") and hasattr(model, "item_vectors"):
+        u, v = model.user_vectors(history), model.item_vectors()
+        out[:] = np.einsum("ij,ij->i", u[case], v[item])
+        return out
+    bounds = np.searchsorted(case, np.arange(len(history) + 1))  # rows are sorted by case
+    for start in range(0, len(history), block):
+        stop = min(start + block, len(history))
+        lo, hi = bounds[start], bounds[stop]
+        if hi > lo:
+            s = model.score_batch(history[start:stop])
+            out[lo:hi] = s[case[lo:hi] - start, item[lo:hi]]
+    return out
+
+
+def candidate_frame(history: np.ndarray, source_topk: SourceTopK, stats: ItemStats, per_source: int, sources=SOURCES,
+                    models: dict | None = None) -> tuple[pd.DataFrame, np.ndarray, np.ndarray]:
+    """Union of candidates for a chunk of cases → (features, case index per row, item per row). Rows are sorted by case.
+    With `models`, every candidate is scored by every source (dense `<source>_score`), not only by the sources that
+    proposed it; `<source>_rank` stays NaN for a source that did not propose the item and `n_sources` counts proposers."""
     n, L = history.shape
     keys = []
     for s in sources:
@@ -70,10 +91,13 @@ def candidate_frame(history: np.ndarray, source_topk: SourceTopK, stats: ItemSta
         k = idx.shape[1]
         key = np.repeat(np.arange(n), k) * stats.n_items + idx.ravel()
         pos = np.searchsorted(pairs, key)
-        score = np.full(len(pairs), np.nan, dtype=np.float32)
         rank = np.full(len(pairs), np.nan, dtype=np.float32)
-        score[pos] = sc.ravel()
         rank[pos] = np.tile(np.arange(1, k + 1, dtype=np.float32), n)
+        if models is not None and s in models:
+            score = dense_scores(models[s], history, case, item)
+        else:
+            score = np.full(len(pairs), np.nan, dtype=np.float32)
+            score[pos] = sc.ravel()
         feats[f"{s}_score"], feats[f"{s}_rank"] = score, rank
         n_sources[pos] += 1
     feats["n_sources"] = n_sources
@@ -110,58 +134,75 @@ class Reranker:
         self.train_info: dict = {}
 
     # training -----------------------------------------------------------------------------------------------------
-    def fit(self, cases: Cases, source_topk: SourceTopK, chunk: int = 5000, log_fn=print) -> Reranker:
+    def fit(self, cases: Cases, source_topk: SourceTopK, models: dict | None = None, chunk: int = 5000, log_fn=print) -> Reranker:
+        """10% of the cases are held out (by case, never by row): LightGBM early-stops on their ndcg@10 over the full
+        candidate lists, and afterwards the reranked top-10 is scored on ALL of them, misses included, which is the
+        number configurations are chosen on (`heldout_recall@10`). Training rows come from the other 90%: cases whose
+        target is in the candidate union, with negatives downsampled to about `negatives_per_case`."""
         import lightgbm as lgb
 
+        from .metrics import ranks_in_topk
+
         rng = np.random.default_rng(self.seed)
-        frames, labels, groups = [], [], []
+        n = len(cases)
+        val_case = rng.random(n) < 0.1
+        n_sources = len(source_topk)
+        neg_rate = self.rules.negatives_per_case / max(self.rules.candidates_per_source * n_sources, 1)
+        tr_frames, tr_labels, tr_groups, va_frames, va_labels, va_groups = [], [], [], [], [], []
         n_with_positive = 0
-        for start in range(0, len(cases), chunk):
-            sl = slice(start, start + chunk)
+        for start in range(0, n, chunk):
+            sl = slice(start, min(start + chunk, n))
             sub = {s: (i[sl], v[sl]) for s, (i, v) in source_topk.items()}
-            X, case, item = candidate_frame(cases.history[sl], sub, self.stats, self.rules.candidates_per_source, self.sources)
+            X, case, item = candidate_frame(cases.history[sl], sub, self.stats, self.rules.candidates_per_source, self.sources, models)
             y = (item == cases.target[sl][case]).astype(np.int8)
-            # keep cases that contain their target; downsample negatives
-            has_pos = np.zeros(len(cases.target[sl]), dtype=bool)
+            has_pos = np.zeros(sl.stop - sl.start, dtype=bool)
             has_pos[case[y == 1]] = True
-            keep = has_pos[case] & ((y == 1) | (rng.random(len(y)) < self.rules.negatives_per_case / max(self.rules.candidates_per_source * len(sub), 1)))
-            X, y, case = X[keep].reset_index(drop=True), y[keep], case[keep]
             n_with_positive += int(has_pos.sum())
-            frames.append(X)
-            labels.append(y)
-            groups.append(np.bincount(case)[np.bincount(case) > 0])
-        X = pd.concat(frames, ignore_index=True)
-        y = np.concatenate(labels)
-        group = np.concatenate(groups)
-        self.features = list(X.columns)
-        # hold out 10% of cases for early stopping
-        n_groups = len(group)
-        val = rng.random(n_groups) < 0.1
-        bounds = np.concatenate([[0], np.cumsum(group)])
-        row_val = np.zeros(len(y), dtype=bool)
-        for g in np.flatnonzero(val):
-            row_val[bounds[g] : bounds[g + 1]] = True
-        params = dict(objective="lambdarank", metric="ndcg", eval_at=[10], learning_rate=0.05, num_leaves=31, min_data_in_leaf=50, feature_fraction=0.8,
-                      bagging_fraction=0.8, bagging_freq=1, lambda_l2=5.0, verbose=-1, seed=self.seed, num_threads=0)
-        d_tr = lgb.Dataset(X[~row_val], y[~row_val], group=group[~val])
-        d_va = lgb.Dataset(X[row_val], y[row_val], group=group[val], reference=d_tr)
+            is_val = val_case[sl][case]
+            keep_tr = has_pos[case] & ~is_val & ((y == 1) | (rng.random(len(y)) < neg_rate))
+            keep_va = has_pos[case] & is_val  # full lists: the early-stopping metric sees what inference sees
+            for keep, frames, labels, groups in ((keep_tr, tr_frames, tr_labels, tr_groups), (keep_va, va_frames, va_labels, va_groups)):
+                if keep.any():
+                    frames.append(X[keep].reset_index(drop=True))
+                    labels.append(y[keep])
+                    counts = np.bincount(case[keep])
+                    groups.append(counts[counts > 0])
+        X_tr, y_tr, g_tr = pd.concat(tr_frames, ignore_index=True), np.concatenate(tr_labels), np.concatenate(tr_groups)
+        X_va, y_va, g_va = pd.concat(va_frames, ignore_index=True), np.concatenate(va_labels), np.concatenate(va_groups)
+        self.features = list(X_tr.columns)
+        params = {"objective": "lambdarank", "metric": "ndcg", "eval_at": [10], "learning_rate": 0.05, "num_leaves": 31, "min_data_in_leaf": 50,
+                  "feature_fraction": 0.8, "bagging_fraction": 0.8, "bagging_freq": 1, "lambda_l2": 5.0, "verbose": -1, "seed": self.seed, "num_threads": 0}
+        d_tr = lgb.Dataset(X_tr, y_tr, group=g_tr)
+        d_va = lgb.Dataset(X_va, y_va, group=g_va, reference=d_tr)
         self.booster = lgb.train(params, d_tr, num_boost_round=self.rules.rounds, valid_sets=[d_va], callbacks=[lgb.early_stopping(30, verbose=False)])
-        self.train_info = {"rows": len(y), "cases_with_target_in_candidates": n_with_positive, "cases_total": len(cases),
-                           "candidate_recall": round(n_with_positive / max(len(cases), 1), 4), "best_iteration": int(self.booster.best_iteration),
-                           "val_ndcg10": round(float(self.booster.best_score["valid_0"]["ndcg@10"]), 4), "features": self.features}
+        # the held-out cases, every one of them: what the reranked top-10 is worth once misses are counted
+        val = cases.subset(val_case)
+        val_tk = {s: (i[val_case], v[val_case]) for s, (i, v) in source_topk.items()}
+        idx, _ = self.rerank(val.history, val_tk, 10, models=models)
+        ranks = ranks_in_topk(idx, val.target)
+        hit = ranks > 0
+        union_hit = np.concatenate([i[:, : self.rules.candidates_per_source] for i, _ in val_tk.values()], axis=1) == val.target[:, None]
+        self.train_info = {"rows": int(len(y_tr)), "val_rows": int(len(y_va)), "cases_total": n, "cases_with_target_in_candidates": n_with_positive,
+                           "candidate_recall": round(n_with_positive / max(n, 1), 4), "train_cases": int(len(g_tr)), "val_cases": int(val_case.sum()),
+                           "best_iteration": int(self.booster.best_iteration), "val_ndcg10": round(float(self.booster.best_score["valid_0"]["ndcg@10"]), 4),
+                           "heldout_recall@10": round(float(hit.mean()), 4), "heldout_ndcg@10": round(float(np.where(hit, 1.0 / np.log2(np.maximum(ranks, 1) + 1.0), 0.0).mean()), 4),
+                           "heldout_union_recall": round(float(union_hit.any(axis=1).mean()), 4), "candidates_per_source": self.rules.candidates_per_source,
+                           "sources": list(source_topk), "dense_scores": models is not None, "features": self.features}
         if log_fn:
             log_fn(f"reranker: {self.train_info['rows']:,} rows, candidate recall {self.train_info['candidate_recall']:.3f}, "
-                   f"best iteration {self.train_info['best_iteration']}, val ndcg@10 {self.train_info['val_ndcg10']:.4f}")
+                   f"best iteration {self.train_info['best_iteration']}, val ndcg@10 {self.train_info['val_ndcg10']:.4f}, "
+                   f"held-out recall@10 {self.train_info['heldout_recall@10']:.4f} (union {self.train_info['heldout_union_recall']:.4f})")
         return self
 
     # inference ----------------------------------------------------------------------------------------------------
-    def rerank(self, history: np.ndarray, source_topk: SourceTopK, k: int, chunk: int = 5000, with_sources: bool = False):
-        """Top-k after reranking the candidate union; (idx, score[, sources per item])."""
+    def rerank(self, history: np.ndarray, source_topk: SourceTopK, k: int, models: dict | None = None, chunk: int = 5000, with_sources: bool = False):
+        """Top-k after reranking the candidate union; (idx, score[, sources per item]). Pass the models that produced
+        `source_topk` so every candidate carries every source's dense score, as in training."""
         idx_out, score_out, src_out = [], [], []
         for start in range(0, len(history), chunk):
             sl = slice(start, start + chunk)
             sub = {s: (i[sl], v[sl]) for s, (i, v) in source_topk.items()}
-            X, case, item = candidate_frame(history[sl], sub, self.stats, self.rules.candidates_per_source, self.sources)
+            X, case, item = candidate_frame(history[sl], sub, self.stats, self.rules.candidates_per_source, self.sources, models)
             pred = self.booster.predict(X[self.features], num_iteration=self.booster.best_iteration)
             n = len(history[sl])
             idx = np.full((n, k), PAD, dtype=np.int64)

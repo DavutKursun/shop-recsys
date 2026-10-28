@@ -35,12 +35,14 @@ def summarise(tag: str, log: dict, default_cfg: dict) -> dict:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", required=True, choices=["sasrec", "two_tower"])
+    ap.add_argument("--model", required=True, choices=["sasrec", "two_tower", "reranker"])
     ap.add_argument("--margin", type=float, default=0.0005, help="an ablation must beat the default by more than this to be chosen")
     ap.add_argument("--results", type=Path, default=RESULTS)
     ap.add_argument("--ablations", type=Path, default=RESULTS / "ablations")
     ap.add_argument("--models-dir", type=Path, default=MODELS)
     a = ap.parse_args(argv)
+    if a.model == "reranker":
+        return choose_reranker(a)
     default_path = a.results / f"train_{a.model}.json"
     if not default_path.exists():
         print(f"{default_path} is missing; train the default first", file=sys.stderr)
@@ -71,6 +73,45 @@ def main(argv=None) -> int:
         delta = ", ".join(f"{k}={v}" for k, v in r["config_delta"].items()) or "—"
         mark = " **(chosen)**" if r["tag"] == chosen["tag"] else ""
         print(f"| {r['tag']}{mark} | {delta} | {r['best_epoch']} / {r['epochs_run']} | {r['dev_recall@10']:.4f} | {r['seconds_per_epoch']} | {r['seconds']:.0f} |")
+    return 0
+
+
+def _reranker_run(tag: str, log: dict) -> dict:
+    keys = ("heldout_recall@10", "heldout_ndcg@10", "heldout_union_recall", "candidate_recall", "rows", "val_cases", "best_iteration", "val_ndcg10", "seconds")
+    return {"tag": tag, "config_delta": {"candidates_per_source": log["candidates_per_source"]}, **{k: log.get(k) for k in keys}}
+
+
+def choose_reranker(a) -> int:
+    """The reranker is chosen on the 10% of rerank-window cases held out inside `Reranker.fit` (reranked recall@10 with
+    misses counted), never on dev. The winning weights become models/reranker.joblib."""
+    default_path = a.results / "train_reranker.json"
+    if not default_path.exists():
+        print(f"{default_path} is missing; train the default first", file=sys.stderr)
+        return 1
+    default = json.loads(default_path.read_text(encoding="utf-8"))
+    runs = [_reranker_run("default", default)]
+    for p in sorted(a.ablations.glob("train_reranker-*.json")):
+        tag = p.stem[len("train_reranker-") :]
+        if tag != "default":
+            runs.append(_reranker_run(tag, json.loads(p.read_text(encoding="utf-8"))))
+    best = max(runs, key=lambda r: r["heldout_recall@10"])
+    chosen = best if best["tag"] != "default" and best["heldout_recall@10"] > runs[0]["heldout_recall@10"] + a.margin else runs[0]
+    rule = f"highest reranked recall@10 on the {runs[0]['val_cases']:,} rerank-window cases held out of training (misses counted); the default keeps ties within {a.margin}"
+    if chosen["tag"] != "default":
+        src, dst = a.models_dir / f"reranker-{chosen['tag']}.joblib", a.models_dir / "reranker.joblib"
+        if dst.exists():
+            shutil.copy(dst, a.models_dir / "reranker-default.joblib")
+        shutil.copy(src, dst)
+        shutil.copy(default_path, a.ablations / "train_reranker-default.json")
+        shutil.copy(a.ablations / f"train_reranker-{chosen['tag']}.json", default_path)
+        print(f"{src.name} -> {dst.name} (the default kept as reranker-default.joblib)")
+    out = {"model": "reranker", "chosen": chosen["tag"], "rule": rule, "runs": runs}
+    (a.results / "rerank_choice.json").write_text(json.dumps(out, indent=2), encoding="utf-8")
+    print("| run | candidates per source | held-out recall@10 | held-out ndcg@10 | held-out union recall | candidate recall (all) | rows | best iter | val ndcg@10 |\n|---|---|---|---|---|---|---|---|---|")
+    for r in runs:
+        mark = " **(chosen)**" if r["tag"] == chosen["tag"] else ""
+        print(f"| {r['tag']}{mark} | {r['config_delta']['candidates_per_source']} | {r['heldout_recall@10']:.4f} | {r['heldout_ndcg@10']:.4f} | "
+              f"{r['heldout_union_recall']:.4f} | {r['candidate_recall']:.4f} | {r['rows']:,} | {r['best_iteration']} | {r['val_ndcg10']:.4f} |")
     return 0
 
 
